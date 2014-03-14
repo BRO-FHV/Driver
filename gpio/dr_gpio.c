@@ -7,8 +7,9 @@
  * TODO
  */
 
-#include "hw_cm_per.h"
-#include "gpio.h"
+#include <hw_cm_per.h>
+#include <soc_AM335x.h>
+#include "dr_gpio.h"
 
 #define HWREG(x)	(*((volatile unsigned int *)(x)))
 
@@ -221,17 +222,3 @@ void GPIO1ModuleClkConfig(void)
 }
 
 
-/*
-** This function enables GPIO1 pins
-*/
-unsigned int GPIO1PinMuxSetup(unsigned int pinNo)
-{
-    HWREG(SOC_CONTROL_REGS + CONTROL_CONF_GPMC_AD(pinNo)) =
-        (CONTROL_CONF_GPMC_AD_CONF_GPMC_AD_SLEWCTRL |     /* Slew rate slow */
-        CONTROL_CONF_GPMC_AD_CONF_GPMC_AD_RXACTIVE |    /* Receiver enabled */
-        (CONTROL_CONF_GPMC_AD_CONF_GPMC_AD_PUDEN & (~CONTROL_CONF_GPMC_AD_CONF_GPMC_AD_PUDEN)) | /* PU_PD enabled */
-        (CONTROL_CONF_GPMC_AD_CONF_GPMC_AD_PUTYPESEL & (~CONTROL_CONF_GPMC_AD_CONF_GPMC_AD_PUTYPESEL)) | /* PD */
-        (CONTROL_CONF_MUXMODE(7))    /* Select mode 7 */
-        );
-     return TRUE;
-}

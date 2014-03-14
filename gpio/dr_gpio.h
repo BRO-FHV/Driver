@@ -154,6 +154,8 @@ extern void GPIODebounceTimeConfig(unsigned int baseAdd,
                                    unsigned int debounceTime);
 extern unsigned int GPIORevisionInfoGet(unsigned int baseAdd);
 extern void gpioContextSave(unsigned int baseAdd, GPIOCONTEXT *contextPtr);
+
+extern void GPIO1ModuleClkConfig(void);
 extern void gpioContextRestore(unsigned int baseAdd, GPIOCONTEXT *contextPtr);
 
 
