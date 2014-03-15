@@ -4,9 +4,7 @@
  *
  * Created on: Mar 13, 2014
  * Description: 
- * TODO description
- *
- * TODO documentation
+ * TODO
  */
 
 #include <inttypes.h>
@@ -18,8 +16,8 @@
 
 // init function forward declaration
 extern void UartModuleReset(uint32_t baseAdd);
-static void UartFIFOConfigure(void);
-static uint32_t UartFIFOConfig(uint32_t baseAdd, uint32_t fifoConfig);
+static void UartFIFODefaultConfigure(void);
+static uint32_t UartFIFOConfigure(uint32_t baseAdd, uint32_t fifoConfig);
 static uint32_t UartEnhanFuncEnable(uint32_t baseAdd);
 static uint32_t UartRegConfigModeEnable(uint32_t baseAdd, uint32_t modeFlag);
 static uint32_t UartSubConfigTCRTLRModeEn(uint32_t baseAdd);
@@ -39,6 +37,9 @@ static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
 static void UartDivisorLatchDisable(uint32_t baseAdd);
 static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState);
 
+/**
+ * \brief Enable UART module identified by base address
+ */
 void UartEnable(uint32_t baseAddr) {
 	// Enable Module
 	Uart0ModuleClkConfig();
@@ -50,9 +51,12 @@ void UartEnable(uint32_t baseAddr) {
 	UartModuleReset(SOC_UART_0_REGS);
 }
 
+/**
+ * \brief Configures UART module identified by base address, with baud rate
+ */
 void UartConfigure(uint32_t baseAddr, uint32_t baudRate) {
 	// Performing FIFO configurations
-	UartFIFOConfigure();
+	UartFIFODefaultConfigure();
 
 	// set baud rate
 	UartBaudRateSet(baseAddr, baudRate);
@@ -75,6 +79,11 @@ void UartConfigure(uint32_t baseAddr, uint32_t baudRate) {
 	UartOperatingModeSelect(baseAddr, UART16x_OPER_MODE);
 }
 
+/**
+ * \brief sends message over uart module identified by base address
+ *
+ * \see uart_irda_cir.c::UARTFIFOWrite
+ */
 uint32_t UartWrite(uint32_t baseAddr, unsigned char *pBuffer,
 		uint32_t numTxBytes) {
 	uint32_t lIndex = 0;
@@ -87,15 +96,21 @@ uint32_t UartWrite(uint32_t baseAddr, unsigned char *pBuffer,
 	return lIndex;
 }
 
-void UartWriteFull(uint32_t baseAddr, unsigned char *pBuffer) {
-	// TODO implement write full
-}
-
+/**
+ * \brief disables write access to Divisor Latch registers DLL and DLH
+ *
+ * \see uart_irda_cir.c::UARTDivisorLatchDisable
+ */
 static void UartDivisorLatchDisable(uint32_t baseAdd) {
 	// Disabling access to Divisor Latch registers by clearing LCR[7] bit
 	reg32a(baseAdd, UART_LCR, ~(UART_LCR_DIV_EN));
 }
 
+/**
+ * \brief introduce or remove a Break condition
+ *
+ * \see uart_irda_cir.c::UARTBreakCtl
+ */
 static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState) {
 	// Clearing the BREAK_EN bit in LCR
 	reg32a(baseAdd, UART_LCR, ~(UART_LCR_BREAK_EN));
@@ -104,6 +119,14 @@ static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState) {
 	reg32m(baseAdd, UART_LCR, (breakState & UART_LCR_BREAK_EN));
 }
 
+/**
+ * \brief configures the Line Characteristics for the UART instance. The Line Characteristics include:
+ *           - Word length per frame
+ *           - Number of Stop Bits per frame
+ *           - Parity feature configuration
+ *
+ * \see uart_irda_cir.c::UARTLineCharacConfig
+ */
 static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
 		uint32_t parityFlag) {
 	// Clearing the CHAR_LENGTH and NB_STOP fields in LCR
@@ -125,6 +148,11 @@ static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
 
 }
 
+/**
+ * \brief set baudrate to uart module
+ *
+ * \see uart_irda_cir.c::UARTLineCharacConfig
+ */
 static void UartBaudRateSet(uint32_t baseAddr, uint32_t baudRate) {
 	uint32_t divisorValue = 0;
 
@@ -136,6 +164,12 @@ static void UartBaudRateSet(uint32_t baseAddr, uint32_t baudRate) {
 	UartDivisorLatchWrite(baseAddr, divisorValue);
 }
 
+/**
+ * \brief computes the divisor value for the specified operating mode. Not part of this API, the
+ * 		  divisor value returned is written to the Divisor Latches to configure the Baud Rate
+ *
+ * \see uart_irda_cir.c::UARTDivisorValCompute
+ */
 static uint32_t UartDivisorValCompute(uint32_t moduleClk, uint32_t baudRate,
 		uint32_t modeFlag, uint32_t mirOverSampRate) {
 	uint32_t divisorValue = 0;
@@ -167,6 +201,12 @@ static uint32_t UartDivisorValCompute(uint32_t moduleClk, uint32_t baudRate,
 	return divisorValue;
 }
 
+/**
+ * \brief performs a module reset of the UART module. It also waits until the reset process is
+ * 	      complete
+ *
+ * \see uart_irda_cir.c::UARTModuleReset
+ */
 void UartModuleReset(uint32_t baseAdd) {
 	// Performing Software Reset of the module
 	reg32m(baseAdd, UART_SYSC, UART_SYSC_SOFTRESET);
@@ -175,7 +215,10 @@ void UartModuleReset(uint32_t baseAdd) {
 	wait(!(reg32r(baseAdd, UART_SYSS) & UART_SYSS_RESETDONE));
 }
 
-static void UartFIFOConfigure(void) {
+/**
+ * \brief configures fifo with default values
+ */
+static void UartFIFODefaultConfigure(void) {
 	uint32_t fifoConfig = 0;
 
 	/*
@@ -199,11 +242,21 @@ static void UartFIFOConfigure(void) {
 			UART_DMA_EN_PATH_SCR,
 			UART_DMA_MODE_0_ENABLE);
 
-	/* Configuring the FIFO settings. */
-	UartFIFOConfig(SOC_UART_0_REGS, fifoConfig);
+	// Configuring the FIFO settings
+	UartFIFOConfigure(SOC_UART_0_REGS, fifoConfig);
 }
 
-static uint32_t UartFIFOConfig(uint32_t baseAdd, uint32_t fifoConfig) {
+/**
+ * configures the FIFO settings for the UART instance. Specifically, this does the following
+ * configurations:
+ *   1> Configures the Transmitter and Receiver FIFO Trigger Level granularity
+ *   2> Configures the Transmitter and Receiver FIFO Trigger Level
+ *   3> Configures the bits which clear/not clear the TX and RX FIFOs
+ *   4> Configures the DMA mode of operation
+ *
+ * \see uart_irda_cir.c::UARTFIFOConfig
+ */
+static uint32_t UartFIFOConfigure(uint32_t baseAdd, uint32_t fifoConfig) {
 	uint32_t txGra = (fifoConfig & UART_FIFO_CONFIG_TXGRA) >> 26;
 	uint32_t rxGra = (fifoConfig & UART_FIFO_CONFIG_RXGRA) >> 22;
 
@@ -352,6 +405,12 @@ static uint32_t UartFIFOConfig(uint32_t baseAdd, uint32_t fifoConfig) {
 	return fcrValue;
 }
 
+/**
+ * \brief sets a certain bit in Enhanced Feature Register(EFR) which
+ * 		  shall avail the UART to use some Enhanced Features
+ *
+ * \see uart_irda_cir.c::UARTEnhanFuncEnable
+ */
 uint32_t UartEnhanFuncEnable(uint32_t baseAdd) {
 	uint32_t enhanFnBitVal = 0;
 	uint32_t lcrRegValue = 0;
@@ -371,6 +430,12 @@ uint32_t UartEnhanFuncEnable(uint32_t baseAdd) {
 	return enhanFnBitVal;
 }
 
+/**
+ * \brief configures the specified Register Configuration mode for
+ *        the UART
+ *
+ * \see uart_irda_cir.c::UARTRegConfigModeEnable
+ */
 static uint32_t UartRegConfigModeEnable(uint32_t baseAdd, uint32_t modeFlag) {
 	uint32_t lcrRegValue = 0;
 
@@ -394,6 +459,11 @@ static uint32_t UartRegConfigModeEnable(uint32_t baseAdd, uint32_t modeFlag) {
 	return lcrRegValue;
 }
 
+/**
+ * \brief enables the TCR_TLR Sub_Configuration Mode of operation
+ *
+ * \see uart_irda_cir.c::UARTSubConfigTCRTLRModeEn
+ */
 static uint32_t UartSubConfigTCRTLRModeEn(uint32_t baseAdd) {
 	uint32_t enhanFnBitVal = 0;
 	uint32_t tcrTlrValue = 0;
@@ -428,6 +498,11 @@ static uint32_t UartSubConfigTCRTLRModeEn(uint32_t baseAdd) {
 	return tcrTlrValue;
 }
 
+/**
+ * \brief write a specified value to the FIFO Control Register(FCR)
+ *
+ * \see uart_irda_cir.c::UARTFIFORegisterWrite
+ */
 static void UartFIFORegisterWrite(uint32_t baseAdd, uint32_t fcrValue) {
 	uint32_t divLatchRegVal = 0;
 	uint32_t enhanFnBitVal = 0;
@@ -455,6 +530,11 @@ static void UartFIFORegisterWrite(uint32_t baseAdd, uint32_t fcrValue) {
 	reg32w(baseAdd, UART_LCR, lcrRegValue);
 }
 
+/**
+ * \brief  write the specified divisor value to Divisor Latch registers DLL and DLH
+ *
+ * \see uart_irda_cir.c::UARTDivisorLatchWrite
+ */
 static uint32_t UartDivisorLatchWrite(uint32_t baseAddr, uint32_t divisorValue) {
 	volatile uint32_t enhanFnBitVal = 0;
 	volatile uint32_t sleepMdBitVal = 0;
@@ -515,6 +595,12 @@ static uint32_t UartDivisorLatchWrite(uint32_t baseAddr, uint32_t divisorValue) 
 	return divRegVal;
 }
 
+/**
+ * \brief restores the ENHANCEDEN bit value of EFR register(EFR[4]) to the corresponding bit
+ * 		  value in 'enhanFnBitVal' passed as a parameter to this API.
+ *
+ * \see uart_irda_cir.c::UARTEnhanFuncBitValRestore
+ */
 static void UartEnhanFuncBitValRestore(uint32_t baseAddr,
 		uint32_t enhanFnBitVal) {
 	uint32_t lcrRegValue = 0;
@@ -530,6 +616,16 @@ static void UartEnhanFuncBitValRestore(uint32_t baseAddr,
 	reg32w(baseAddr, UART_LCR, lcrRegValue);
 }
 
+/**
+ * \brief configures the operating mode for the UART instance.
+ *        The different operating modes are:
+ *           - UART(16x, 13x, 16x Auto-Baud)
+ *           - IrDA(SIR, MIR, FIR)
+ *           - CIR
+ *           - Disabled state(default state)
+ *
+ * \see uart_irda_cir.c::UARTOperatingModeSelect
+ */
 static uint32_t UartOperatingModeSelect(uint32_t baseAddr, uint32_t modeFlag) {
 	uint32_t operMode = 0;
 
@@ -543,6 +639,12 @@ static uint32_t UartOperatingModeSelect(uint32_t baseAddr, uint32_t modeFlag) {
 	return operMode;
 }
 
+/**
+ * \brief restores the TCRTLR bit(MCR[6]) value in Modem Control Register(MCR) to the
+ *  	  corresponding bit value in 'tcrTlrBitVal' passed as a parameter to this API
+ *
+ * \see uart_irda_cir.c::UARTTCRTLRBitValRestore
+ */
 static void UartTCRTLRBitValRestore(uint32_t baseAddr, uint32_t tcrTlrBitVal) {
 	uint32_t enhanFnBitVal = 0;
 	uint32_t lcrRegValue = 0;

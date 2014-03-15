@@ -109,7 +109,7 @@
 
 // Parameterized macro to configure the FIFO settings
 #define UART_FIFO_CONFIG(txGra, rxGra, txTrig, rxTrig, txClr, rxClr, dmaEnPath, dmaMode) \
-                        ((unsigned int) \
+                        ((uint32_t) \
                          (((txGra & 0xF) << 26) | \
                           ((rxGra & 0xF) << 22) | \
                           ((txTrig & 0xFF) << 14) | \
@@ -128,13 +128,40 @@
 #define UART_FIFO_CONFIG_DMAENPATH (0x1 << 3)
 #define UART_FIFO_CONFIG_DMAMODE   (0x7 << 0)
 
+/**
+ * \brief This function enables UART module identified with base address
+ *
+ * \param baseAddr basic address of module
+ *
+ * \return none
+ */
 void UartEnable(uint32_t baseAddr);
 
+/**
+ * \brief This function configures UART module with default values and given baudrate
+ *
+ * \param baseAddr basic address of module
+ * \param baudRate baud rate to configure
+ *
+ * \return none
+ */
 void UartConfigure(uint32_t baseAddr, uint32_t baudRate);
 
+/**
+ * \brief This function sends a message over UART identified with base address
+ *
+ * \param baseAddr 		basic address of module
+ * \param pBuffer 		pointer to message
+ * \param numTxBytes 	length of message
+ *
+ * \return number of data bytes that were written to the TX FIFO
+ *
+ * \note   This function does not check for the emptiness of the TX FIFO or for
+ *         its space availability before writing to it. The application
+ *         calling this function has the responsibility of checking the TX
+ *         FIFO status before using this API
+ */
 uint32_t UartWrite(uint32_t baseAddr, unsigned char *pBuffer,
-		unsigned int numTxBytes);
-
-void UartWriteFull(uint32_t baseAddr, unsigned char *pBuffer);
+		uint32_t numTxBytes);
 
 #endif /* UART_H_ */
