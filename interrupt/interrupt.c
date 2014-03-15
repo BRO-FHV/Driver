@@ -15,6 +15,8 @@
  * \param intrNum		number of interrupt
  */
 void IntSystemEnable(unsigned int intrNum) {
-	reg32w(SOC_AINTC_REGS, INTC_MIR_CLEAR(intrNum >> REG_IDX_SHIFT),
+    __asm(" dsb");
+
+    reg32w(SOC_AINTC_REGS, INTC_MIR_CLEAR(intrNum >> REG_IDX_SHIFT),
 		(0x01 << (intrNum & REG_BIT_MASK)));
 }
