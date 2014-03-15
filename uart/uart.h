@@ -28,6 +28,46 @@
 
 #define UART_MODULE_INPUT_CLK					(48000000u)
 
+// Word Length per frame
+#define UART_FRAME_WORD_LENGTH_5            (UART_LCR_CHAR_LENGTH_5BIT)
+#define UART_FRAME_WORD_LENGTH_6            (UART_LCR_CHAR_LENGTH_6BIT)
+#define UART_FRAME_WORD_LENGTH_7            (UART_LCR_CHAR_LENGTH_7BIT)
+#define UART_FRAME_WORD_LENGTH_8            (UART_LCR_CHAR_LENGTH_8BIT)
+
+// Number of Stop Bits per frame
+#define UART_FRAME_NUM_STB_1                (UART_LCR_NB_STOP_1BIT << \
+                                             UART_LCR_NB_STOP_SHIFT)
+#define UART_FRAME_NUM_STB_1_5_2            (UART_LCR_NB_STOP_2BIT << \
+                                             UART_LCR_NB_STOP_SHIFT)
+
+// Values to control parity feature
+#define UART_PARITY_REPR_1                  (UART_LCR_PARITY_TYPE2 | \
+                                             (UART_LCR_PARITY_TYPE1_ODD << \
+                                              UART_LCR_PARITY_TYPE1_SHIFT) | \
+                                              UART_LCR_PARITY_EN)
+
+#define UART_PARITY_REPR_0                  (UART_LCR_PARITY_TYPE2 | \
+                                             (UART_LCR_PARITY_TYPE1_EVEN << \
+                                              UART_LCR_PARITY_TYPE1_SHIFT) | \
+                                              UART_LCR_PARITY_EN)
+
+#define UART_ODD_PARITY                     ((UART_LCR_PARITY_TYPE1_ODD << \
+                                              UART_LCR_PARITY_TYPE1_SHIFT) | \
+                                              UART_LCR_PARITY_EN)
+
+#define UART_EVEN_PARITY                    ((UART_LCR_PARITY_TYPE1_EVEN << \
+                                              UART_LCR_PARITY_TYPE1_SHIFT) | \
+                                              UART_LCR_PARITY_EN)
+
+#define UART_PARITY_NONE                    (UART_LCR_PARITY_EN_DISABLE << \
+                                             UART_LCR_PARITY_EN_SHIFT)
+
+// Break condition generation controls
+#define UART_BREAK_COND_DISABLE             (UART_LCR_BREAK_EN_NORMAL << \
+                                             UART_LCR_BREAK_EN_SHIFT)
+#define UART_BREAK_COND_ENABLE              (UART_LCR_BREAK_EN_FORCE << \
+                                             UART_LCR_BREAK_EN_SHIFT)
+
 // level for the Transmitter FIFO
 #define UART_FCR_TX_TRIG_LVL_8              (UART_FCR_TX_FIFO_TRIG_8SPACES << \
                                              UART_FCR_TX_FIFO_TRIG_SHIFT)
@@ -55,7 +95,6 @@
 #define UART_REG_CONFIG_MODE_A              (0x0080)
 #define UART_REG_CONFIG_MODE_B              (0x00BF)
 #define UART_REG_OPERATIONAL_MODE           (0x007F)
-
 
 // DMA mode
 // DMA mode could be configured either through FCR or SCR
@@ -93,6 +132,9 @@ void UartEnable(uint32_t baseAddr);
 
 void UartConfigure(uint32_t baseAddr, uint32_t baudRate);
 
-void UartWrite(uint32_t baseAddr);
+uint32_t UartWrite(uint32_t baseAddr, unsigned char *pBuffer,
+		unsigned int numTxBytes);
+
+void UartWriteFull(uint32_t baseAddr, unsigned char *pBuffer);
 
 #endif /* UART_H_ */

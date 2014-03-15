@@ -24,16 +24,20 @@ static uint32_t UartEnhanFuncEnable(uint32_t baseAdd);
 static uint32_t UartRegConfigModeEnable(uint32_t baseAdd, uint32_t modeFlag);
 static uint32_t UartSubConfigTCRTLRModeEn(uint32_t baseAdd);
 static void UartFIFORegisterWrite(uint32_t baseAdd, uint32_t fcrValue);
-static uint32_t UartDivisorLatchWrite(uint32_t baseAdd, uint32_t divisorValue);
-static void UartEnhanFuncBitValRestore(uint32_t baseAdd, uint32_t enhanFnBitVal);
-static uint32_t UartOperatingModeSelect(uint32_t baseAdd, uint32_t modeFlag);
-static void UartTCRTLRBitValRestore(uint32_t baseAdd, uint32_t tcrTlrBitVal);
+static uint32_t UartDivisorLatchWrite(uint32_t baseAddr, uint32_t divisorValue);
+static void UartEnhanFuncBitValRestore(uint32_t baseAddr,
+		uint32_t enhanFnBitVal);
+static uint32_t UartOperatingModeSelect(uint32_t baseAddr, uint32_t modeFlag);
+static void UartTCRTLRBitValRestore(uint32_t baseAddr, uint32_t tcrTlrBitVal);
 
 // configure function forward declaration
 static void UartBaudRateSet(uint32_t baseAddr, uint32_t baudRate);
-static uint32_t UartDivisorValCompute(uint32_t moduleClk,
-		uint32_t baudRate, uint32_t modeFlag,
-		uint32_t mirOverSampRate);
+static uint32_t UartDivisorValCompute(uint32_t moduleClk, uint32_t baudRate,
+		uint32_t modeFlag, uint32_t mirOverSampRate);
+static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
+		uint32_t parityFlag);
+static void UartDivisorLatchDisable(uint32_t baseAdd);
+static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState);
 
 void UartEnable(uint32_t baseAddr) {
 	// Enable Module
@@ -44,29 +48,96 @@ void UartEnable(uint32_t baseAddr) {
 
 	// Performing a module reset
 	UartModuleReset(SOC_UART_0_REGS);
-
-	UartFIFOConfigure();
 }
 
 void UartConfigure(uint32_t baseAddr, uint32_t baudRate) {
+	// Performing FIFO configurations
+	UartFIFOConfigure();
+
 	// set baud rate
 	UartBaudRateSet(baseAddr, baudRate);
+
+	// Switching to Configuration Mode B
+	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+
+	// Programming the Line Characteristics
+	UartLineCharacConfig(baseAddr,
+			(UART_FRAME_WORD_LENGTH_8 | UART_FRAME_NUM_STB_1), UART_PARITY_NONE)
+			;
+
+	// Disabling write access to Divisor Latches
+	UartDivisorLatchDisable(baseAddr);
+
+	// Disabling Break Control
+	UartBreakCtl(baseAddr, UART_BREAK_COND_DISABLE);
+
+	// Switching to UART16x operating mode
+	UartOperatingModeSelect(baseAddr, UART16x_OPER_MODE);
+}
+
+uint32_t UartWrite(uint32_t baseAddr, unsigned char *pBuffer,
+		uint32_t numTxBytes) {
+	uint32_t lIndex = 0;
+
+	for (lIndex = 0; lIndex < numTxBytes; lIndex++) {
+		// Writing data to the TX FIFO
+		reg32w(baseAddr, UART_THR, *pBuffer++);
+	}
+
+	return lIndex;
+}
+
+void UartWriteFull(uint32_t baseAddr, unsigned char *pBuffer) {
+	// TODO implement write full
+}
+
+static void UartDivisorLatchDisable(uint32_t baseAdd) {
+	// Disabling access to Divisor Latch registers by clearing LCR[7] bit
+	reg32a(baseAdd, UART_LCR, ~(UART_LCR_DIV_EN));
+}
+
+static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState) {
+	// Clearing the BREAK_EN bit in LCR
+	reg32a(baseAdd, UART_LCR, ~(UART_LCR_BREAK_EN));
+
+	// Programming the BREAK_EN bit in LCR
+	reg32m(baseAdd, UART_LCR, (breakState & UART_LCR_BREAK_EN));
+}
+
+static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
+		uint32_t parityFlag) {
+	// Clearing the CHAR_LENGTH and NB_STOP fields in LCR
+	reg32a(baseAddr, UART_LCR, ~(UART_LCR_NB_STOP | UART_LCR_CHAR_LENGTH));
+
+	// Programming the CHAR_LENGTH and NB_STOP fields in LCR
+	reg32m(baseAddr, UART_LCR,
+			(wLenStbFlag & (UART_LCR_NB_STOP | UART_LCR_CHAR_LENGTH)));
+
+	// Clearing the PARITY_EN, PARITY_TYPE1 and PARITY_TYPE2 fields in LCR
+	reg32a(baseAddr, UART_LCR,
+			~(UART_LCR_PARITY_TYPE2 | UART_LCR_PARITY_TYPE1 | UART_LCR_PARITY_EN));
+
+	// Programming the PARITY_EN, PARITY_TYPE1 and PARITY_TYPE2 fields in LCR
+	reg32m(baseAddr, UART_LCR,
+			(parityFlag
+					& (UART_LCR_PARITY_TYPE2 | UART_LCR_PARITY_TYPE1
+							| UART_LCR_PARITY_EN)));
+
 }
 
 static void UartBaudRateSet(uint32_t baseAddr, uint32_t baudRate) {
 	uint32_t divisorValue = 0;
 
 	// Computing the Divisor Value
-	divisorValue = UartDivisorValCompute(UART_MODULE_INPUT_CLK,
-			baudRate, UART16x_OPER_MODE, UART_MIR_OVERSAMPLING_RATE_42);
+	divisorValue = UartDivisorValCompute(UART_MODULE_INPUT_CLK, baudRate,
+			UART16x_OPER_MODE, UART_MIR_OVERSAMPLING_RATE_42);
 
 	//Programming the Divisor Latches
-	UartDivisorLatchWrite(SOC_UART_0_REGS, divisorValue);
+	UartDivisorLatchWrite(baseAddr, divisorValue);
 }
 
-static uint32_t UartDivisorValCompute(uint32_t moduleClk,
-		uint32_t baudRate, uint32_t modeFlag,
-		uint32_t mirOverSampRate) {
+static uint32_t UartDivisorValCompute(uint32_t moduleClk, uint32_t baudRate,
+		uint32_t modeFlag, uint32_t mirOverSampRate) {
 	uint32_t divisorValue = 0;
 
 	modeFlag &= UART_MDR1_MODE_SELECT;
@@ -384,7 +455,7 @@ static void UartFIFORegisterWrite(uint32_t baseAdd, uint32_t fcrValue) {
 	reg32w(baseAdd, UART_LCR, lcrRegValue);
 }
 
-static uint32_t UartDivisorLatchWrite(uint32_t baseAdd, uint32_t divisorValue) {
+static uint32_t UartDivisorLatchWrite(uint32_t baseAddr, uint32_t divisorValue) {
 	volatile uint32_t enhanFnBitVal = 0;
 	volatile uint32_t sleepMdBitVal = 0;
 	volatile uint32_t lcrRegValue = 0;
@@ -392,108 +463,111 @@ static uint32_t UartDivisorLatchWrite(uint32_t baseAdd, uint32_t divisorValue) {
 	uint32_t divRegVal = 0;
 
 	// Switching to Register Configuration Mode B
-	lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
+	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
 	// Collecting the current value of EFR[4] and later setting it
-	enhanFnBitVal = reg32r(baseAdd, UART_EFR) & UART_EFR_ENHANCED_EN;
-	reg32m(baseAdd, UART_EFR, UART_EFR_ENHANCED_EN);
+	enhanFnBitVal = reg32r(baseAddr, UART_EFR) & UART_EFR_ENHANCED_EN;
+	reg32m(baseAddr, UART_EFR, UART_EFR_ENHANCED_EN);
 
 	// Switching to Register Operational Mode
-	UartRegConfigModeEnable(baseAdd, UART_REG_OPERATIONAL_MODE);
+	UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
 
 	//Collecting the current value of IER[4](SLEEPMODE bit) and later clearing it
-	sleepMdBitVal = reg32r(baseAdd, UART_IER) & UART_IER_SLEEP_MODE_IT;
-	reg32a(baseAdd, UART_IER, ~(UART_IER_SLEEP_MODE_IT));
+	sleepMdBitVal = reg32r(baseAddr, UART_IER) & UART_IER_SLEEP_MODE_IT;
+	reg32a(baseAddr, UART_IER, ~(UART_IER_SLEEP_MODE_IT));
 
 	// Switching to Register Configuration Mode B
-	UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
+	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
 	// Collecting the current value of Divisor Latch Registers
-	divRegVal = reg32r(baseAdd, UART_DLL) & 0xFF;
-	divRegVal |= ((reg32r(baseAdd, UART_DLH) & 0x3F) << 8);
+	divRegVal = reg32r(baseAddr, UART_DLL) & 0xFF;
+	divRegVal |= ((reg32r(baseAddr, UART_DLH) & 0x3F) << 8);
 
 	// Switch the UART instance to Disabled state
-	operMode = UartOperatingModeSelect(baseAdd, UART_MDR1_MODE_SELECT_DISABLED);
+	operMode = UartOperatingModeSelect(baseAddr,
+			UART_MDR1_MODE_SELECT_DISABLED);
 
 	// Writing to Divisor Latch Low(DLL) register
-	reg32w(baseAdd, UART_DLL, divisorValue & 0x00FF);
+	reg32w(baseAddr, UART_DLL, divisorValue & 0x00FF);
 
 	// Writing to Divisor Latch High(DLH) register
-	reg32w(baseAdd, UART_DLH, ((divisorValue & 0x3F00) >> 8));
+	reg32w(baseAddr, UART_DLH, ((divisorValue & 0x3F00) >> 8));
 
 	// Restoring the Operating Mode of UART
-	UartOperatingModeSelect(baseAdd, operMode);
+	UartOperatingModeSelect(baseAddr, operMode);
 
 	// Switching to Register Operational Mode
-	UartRegConfigModeEnable(baseAdd, UART_REG_OPERATIONAL_MODE);
+	UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
 
 	// Restoring the value of IER[4] to its original value
-	reg32m(baseAdd, UART_IER, sleepMdBitVal);
+	reg32m(baseAddr, UART_IER, sleepMdBitVal);
 
 	// Switching to Register Configuration Mode B
-	UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
+	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
 	// Restoring the value of EFR[4] to its original value
-	reg32a(baseAdd, UART_EFR, ~(UART_EFR_ENHANCED_EN));
-	reg32m(baseAdd, UART_EFR, enhanFnBitVal);
+	reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
+	reg32m(baseAddr, UART_EFR, enhanFnBitVal);
 
 	/* Restoring the value of LCR Register. */
-	reg32w(baseAdd, UART_LCR, lcrRegValue);
+	reg32w(baseAddr, UART_LCR, lcrRegValue);
 
 	return divRegVal;
 }
 
-static void UartEnhanFuncBitValRestore(uint32_t baseAdd, uint32_t enhanFnBitVal) {
+static void UartEnhanFuncBitValRestore(uint32_t baseAddr,
+		uint32_t enhanFnBitVal) {
 	uint32_t lcrRegValue = 0;
 
 	// Enabling Configuration Mode B of operation
-	lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
+	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
 	// Restoring the value of EFR[4]
-	reg32a(baseAdd, UART_EFR, ~(UART_EFR_ENHANCED_EN));
-	reg32m(baseAdd, UART_EFR, (enhanFnBitVal & UART_EFR_ENHANCED_EN));
+	reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
+	reg32m(baseAddr, UART_EFR, (enhanFnBitVal & UART_EFR_ENHANCED_EN));
 
 	// Programming LCR with the collected value
-	reg32w(baseAdd, UART_LCR, lcrRegValue);
+	reg32w(baseAddr, UART_LCR, lcrRegValue);
 }
 
-static uint32_t UartOperatingModeSelect(uint32_t baseAdd, uint32_t modeFlag) {
+static uint32_t UartOperatingModeSelect(uint32_t baseAddr, uint32_t modeFlag) {
 	uint32_t operMode = 0;
 
-	operMode = (reg32r(baseAdd, UART_MDR1) & UART_MDR1_MODE_SELECT);
+	operMode = (reg32r(baseAddr, UART_MDR1) & UART_MDR1_MODE_SELECT);
 
 	/* Clearing the MODESELECT field in MDR1. */
-	reg32a(baseAdd, UART_MDR1, ~(UART_MDR1_MODE_SELECT));
+	reg32a(baseAddr, UART_MDR1, ~(UART_MDR1_MODE_SELECT));
 	/* Programming the MODESELECT field in MDR1. */
-	reg32m(baseAdd, UART_MDR1, (modeFlag & UART_MDR1_MODE_SELECT));
+	reg32m(baseAddr, UART_MDR1, (modeFlag & UART_MDR1_MODE_SELECT));
 
 	return operMode;
 }
 
-static void UartTCRTLRBitValRestore(uint32_t baseAdd, uint32_t tcrTlrBitVal) {
+static void UartTCRTLRBitValRestore(uint32_t baseAddr, uint32_t tcrTlrBitVal) {
 	uint32_t enhanFnBitVal = 0;
+	uint32_t lcrRegValue = 0;
 
 	// Switching to Register Configuration Mode B
-	lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
+	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
 	// Collecting the current value of EFR[4] and later setting it
-	enhanFnBitVal = reg32r(baseAdd, UART_EFR) & UART_EFR_ENHANCED_EN;
-	reg32m(baseAdd, UART_EFR, UART_EFR_ENHANCED_EN);
+	enhanFnBitVal = reg32r(baseAddr, UART_EFR) & UART_EFR_ENHANCED_EN;
+	reg32m(baseAddr, UART_EFR, UART_EFR_ENHANCED_EN);
 
 	// Switching to Configuration Mode A of operation
-	UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_A);
+	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_A);
 
 	// Programming MCR[6] with the corresponding bit value in 'tcrTlrBitVal'
-	reg32a(baseAdd, UART_MCR, ~(UART_MCR_TCR_TLR));
-	reg32m(baseAdd, UART_MCR, (tcrTlrBitVal & UART_MCR_TCR_TLR));
+	reg32a(baseAddr, UART_MCR, ~(UART_MCR_TCR_TLR));
+	reg32m(baseAddr, UART_MCR, (tcrTlrBitVal & UART_MCR_TCR_TLR));
 
 	// Switching to Register Configuration Mode B
-	UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
+	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
 	/* Restoring the value of EFR[4] to its original value. */
-	reg32a(baseAdd, UART_EFR, ~(UART_EFR_ENHANCED_EN));
-	reg32m(baseAdd, UART_EFR, enhanFnBitVal);
+	reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
+	reg32m(baseAddr, UART_EFR, enhanFnBitVal);
 
 	/* Restoring the value of LCR. */
-	reg32w(baseAdd, UART_LCR, lcrRegValue);
+	reg32w(baseAddr, UART_LCR, lcrRegValue);
 }
