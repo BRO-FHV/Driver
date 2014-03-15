@@ -10,65 +10,65 @@
 #ifndef UART_H_
 #define UART_H_
 
-#define UART_FIFO_CONFIG_TXGRA     (0xF << 26)
-#define UART_FIFO_CONFIG_RXGRA     (0xF << 22)
+#include <inttypes.h>
 
-/**
- * Enables UART0
- */
-void UART0Enable();
+// Values to configure the Operating modes of UART.
+#define UART16x_OPER_MODE                   (UART_MDR1_MODE_SELECT_UART16X)
+#define UART_SIR_OPER_MODE                  (UART_MDR1_MODE_SELECT_SIR)
+#define UART16x_AUTO_BAUD_OPER_MODE         (UART_MDR1_MODE_SELECT_UART16XAUTO)
+#define UART13x_OPER_MODE                   (UART_MDR1_MODE_SELECT_UART13X)
+#define UART_MIR_OPER_MODE                  (UART_MDR1_MODE_SELECT_MIR)
+#define UART_FIR_OPER_MODE                  (UART_MDR1_MODE_SELECT_FIR)
+#define UART_CIR_OPER_MODE                  (UART_MDR1_MODE_SELECT_CIR)
+#define UART_DISABLED_MODE                  (UART_MDR1_MODE_SELECT_DISABLED)
 
-/**
- * Select UART0
- */
-void UART0PinMuxSetup();
+// Over-sampling rate for MIR mode used to obtain the Divisor Values
+#define UART_MIR_OVERSAMPLING_RATE_41          (41)
+#define UART_MIR_OVERSAMPLING_RATE_42          (42)
 
-/**
- * This API configures the FIFO settings for the UART0 instance.
- * Specifically, this does the following configurations:
- * 	 1> Configures the Transmitter and Receiver FIFO Trigger Level granularity
- *   2> Configures the Transmitter and Receiver FIFO Trigger Level
- *   3> Configures the bits which clear/not clear the TX and RX FIFOs
- *   4> Configures the DMA mode of operation
- */
-unsigned int UART0FIFOConfig(unsigned int fifoConfig);
+#define UART_MODULE_INPUT_CLK					(48000000u)
 
-/**
- * This API is used to write the specified divisor value to Divisor
- * Latch registers DLL and DLH for UART0.
- */
-unsigned int UART0DivisorLatchWrite(unsigned int divisorValue);
+// level for the Transmitter FIFO
+#define UART_FCR_TX_TRIG_LVL_8              (UART_FCR_TX_FIFO_TRIG_8SPACES << \
+                                             UART_FCR_TX_FIFO_TRIG_SHIFT)
+#define UART_FCR_TX_TRIG_LVL_16             (UART_FCR_TX_FIFO_TRIG_16SPACES << \
+                                             UART_FCR_TX_FIFO_TRIG_SHIFT)
+#define UART_FCR_TX_TRIG_LVL_32             (UART_FCR_TX_FIFO_TRIG_32SPACES << \
+                                             UART_FCR_TX_FIFO_TRIG_SHIFT)
+#define UART_FCR_TX_TRIG_LVL_56             (UART_FCR_TX_FIFO_TRIG_56SPACES << \
+                                             UART_FCR_TX_FIFO_TRIG_SHIFT)
 
-/**
- * Reset UART0
- */
-void UART0ModuleReset();
+// level for the Receiver FIFO
+#define UART_FCR_RX_TRIG_LVL_8              (UART_FCR_RX_FIFO_TRIG_8CHAR <<   \
+                                             UART_FCR_RX_FIFO_TRIG_SHIFT)
+#define UART_FCR_RX_TRIG_LVL_16             (UART_FCR_RX_FIFO_TRIG_16CHAR <<  \
+                                             UART_FCR_RX_FIFO_TRIG_SHIFT)
+#define UART_FCR_RX_TRIG_LVL_56             (UART_FCR_RX_FIFO_TRIG_56CHAR <<  \
+                                             UART_FCR_RX_FIFO_TRIG_SHIFT)
+#define UART_FCR_RX_TRIG_LVL_60             (UART_FCR_RX_FIFO_TRIG_60CHAR <<  \
+                                             UART_FCR_RX_FIFO_TRIG_SHIFT)
+// trigger level granularity
+#define UART_TRIG_LVL_GRANULARITY_4         (0x0000)
+#define UART_TRIG_LVL_GRANULARITY_1         (0x0001)
 
-/**
- * This API configures the specified Register Configuration mode for
- * the UART.
- */
-unsigned int UART0RegConfigModeEnable(unsigned int modeFlag);
+// register configuration modes
+#define UART_REG_CONFIG_MODE_A              (0x0080)
+#define UART_REG_CONFIG_MODE_B              (0x00BF)
+#define UART_REG_OPERATIONAL_MODE           (0x007F)
 
-/**
- * This API disables write access to Divisor Latch registers DLL and
- * DLH.
- */
-void UART0DivisorLatchDisable();
 
-/**
- * This API configures the Line Characteristics for the
- * UART instance. The Line Characteristics include:
- *   - Word length per frame
- *   - Number of Stop Bits per frame
- *   - Parity feature configuration
- */
-extern void UARTLineCharacConfig(unsigned int wLenStbFlag,
-		unsigned int parityFlag);
+// DMA mode
+// DMA mode could be configured either through FCR or SCR
+#define UART_DMA_EN_PATH_FCR                (UART_SCR_DMA_MODE_CTL_FCR)
+#define UART_DMA_EN_PATH_SCR                (UART_SCR_DMA_MODE_CTL_SCR)
 
-/**
- * Parameterized macro to configure the FIFO settings.
- */
+// DMA mode selection
+#define UART_DMA_MODE_0_ENABLE              (UART_SCR_DMA_MODE_2_MODE0)
+#define UART_DMA_MODE_1_ENABLE              (UART_SCR_DMA_MODE_2_MODE1)
+#define UART_DMA_MODE_2_ENABLE              (UART_SCR_DMA_MODE_2_MODE2)
+#define UART_DMA_MODE_3_ENABLE              (UART_SCR_DMA_MODE_2_MODE3)
+
+// Parameterized macro to configure the FIFO settings
 #define UART_FIFO_CONFIG(txGra, rxGra, txTrig, rxTrig, txClr, rxClr, dmaEnPath, dmaMode) \
                         ((unsigned int) \
                          (((txGra & 0xF) << 26) | \
@@ -80,65 +80,19 @@ extern void UARTLineCharacConfig(unsigned int wLenStbFlag,
                           ((dmaEnPath & 0x1) << 3) | \
                           (dmaMode & 0x7)))
 
-/**
- * This API performs a module reset of the UART module. It also
- * waits until the reset process is complete.
- */
-void UARTModuleReset(unsigned int baseAdd);
+#define UART_FIFO_CONFIG_TXGRA     (0xF << 26)
+#define UART_FIFO_CONFIG_RXGRA     (0xF << 22)
+#define UART_FIFO_CONFIG_TXTRIG    (0xFF << 14)
+#define UART_FIFO_CONFIG_RXTRIG    (0xFF << 6)
+#define UART_FIFO_CONFIG_TXCLR     (0x1 << 5)
+#define UART_FIFO_CONFIG_RXCLR     (0x1 << 4)
+#define UART_FIFO_CONFIG_DMAENPATH (0x1 << 3)
+#define UART_FIFO_CONFIG_DMAMODE   (0x7 << 0)
 
-/**
- * This API configures the FIFO settings for the UART instance.
- * Specifically, this does the following configurations:
- * 	 1> Configures the Transmitter and Receiver FIFO Trigger Level granularity
- *   2> Configures the Transmitter and Receiver FIFO Trigger Level
- *   3> Configures the bits which clear/not clear the TX and RX FIFOs
- *   4> Configures the DMA mode of operation
- */
-unsigned int UARTFIFOConfig(unsigned int baseAdd, unsigned int fifoConfig);
+void UartEnable(uint32_t baseAddr);
 
-/**
- * This API is used to write the specified divisor value to Divisor
- * Latch registers DLL and DLH.
- */
-unsigned int UARTDivisorLatchWrite(unsigned int baseAdd,
-		unsigned int divisorValue);
+void UartConfigure(uint32_t baseAddr, uint32_t baudRate);
 
-/**
- * This API computes the divisor value for the specified operating
- * mode. Not part of this API, the divisor value returned is written
- * to the Divisor Latches to configure the Baud Rate.
- */
-unsigned int UARTDivisorValCompute(unsigned int moduleClk,
-		unsigned int baudRate, unsigned int modeFlag,
-		unsigned int mirOverSampRate);
-
-/**
- * This API configures the specified Register Configuration mode for
- * the UART.
- */
-unsigned int UARTRegConfigModeEnable(unsigned int baseAdd,
-		unsigned int modeFlag);
-
-/**
- * This API configures the Line Characteristics for the
- * UART instance. The Line Characteristics include:
- *   - Word length per frame
- *   - Number of Stop Bits per frame
- *   - Parity feature configuration
- */
-extern void UARTLineCharacConfig(unsigned int baseAdd, unsigned int wLenStbFlag,
-		unsigned int parityFlag);
-
-/**
- * This API disables write access to Divisor Latch registers DLL and
- * DLH.
- */
-void UARTDivisorLatchDisable(unsigned int baseAdd);
-
-/**
- * This API performs a module reset of the UART module. It also
- * waits until the reset process is complete.
- */
-void UARTModuleReset(unsigned int baseAdd);
+void UartWrite(uint32_t baseAddr);
 
 #endif /* UART_H_ */
