@@ -4,7 +4,7 @@
  *
  * Created on: Mar 14, 2014
  * Description: 
- * TODO
+ * Definition for debug console
  */
 
 #ifndef DEBUG_H_

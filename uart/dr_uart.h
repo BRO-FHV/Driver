@@ -4,7 +4,7 @@
  *
  * Created on: Mar 13, 2014
  * Description: 
- * TODO
+ * Definition for UART
  */
 
 #ifndef UART_H_

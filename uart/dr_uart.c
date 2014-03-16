@@ -4,7 +4,7 @@
  *
  * Created on: Mar 13, 2014
  * Description: 
- * TODO
+ * Implementation of UART
  */
 
 #include <inttypes.h>
