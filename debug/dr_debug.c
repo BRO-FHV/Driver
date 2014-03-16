@@ -8,16 +8,18 @@
  */
 
 #include <inttypes.h>
-#include <soc_AM335x.h>
 #include <stdlib.h>
 #include <string.h>
+#include <hw_interrupt.h>
 #include "dr_debug.h"
+#include "../interrupt/dr_interrupt.h"
 #include "../uart/dr_uart.h"
 #include "../watch/dr_watch.h"
 
 #define BAUD_RATE_115200 (115200)
 
-static char* PrepareMessage(const char* const type, char sender[], char message[]);
+static char* PrepareMessage(const char* const type, char sender[],
+		char message[]);
 
 // buffer for string concat
 char buffer[256] = "";
@@ -38,8 +40,11 @@ uint32_t uartBaseAddr;
  */
 void DebugEnable(uint32_t baseAddr) {
 	uartBaseAddr = baseAddr;
-	UartEnable(SOC_UART_0_REGS);
-	UartConfigure(SOC_UART_0_REGS, BAUD_RATE_115200);
+	UartEnable(baseAddr);
+	UartConfigure(baseAddr, BAUD_RATE_115200);
+
+    IntPrioritySet(SYS_INT_UART0INT, 0, AINTC_HOSTINT_ROUTE_IRQ);
+	UartIntEnable();
 }
 
 /**
@@ -54,7 +59,8 @@ void DebugLog(char sender[], char message[]) {
 /**
  * \brief prepare insternal message
  */
-static char* PrepareMessage(const char* const type, char sender[], char message[]) {
+static char* PrepareMessage(const char* const type, char sender[],
+		char message[]) {
 	buffer[0] = '\0';
 
 	strcat(buffer, WatchCurrentTimeStampString());

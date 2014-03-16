@@ -12,6 +12,7 @@
 #include <hw_beaglebone.h>
 #include <hw_uart.h>
 #include <basic.h>
+#include "../interrupt/dr_interrupt.h"
 #include "dr_uart.h"
 
 // init function forward declaration
@@ -80,12 +81,18 @@ void UartConfigure(uint32_t baseAddr, uint32_t baudRate) {
 }
 
 /**
+ * \brief This function enables UART interrupt
+ */
+void UartIntEnable(void) {
+	IntHandlerEnable(SYS_INT_UART0INT);
+}
+
+/**
  * \brief sends message over uart module identified by base address
  *
  * \see uart_irda_cir.c::UARTFIFOWrite
  */
-uint32_t UartWrite(uint32_t baseAddr, char *pBuffer,
-		uint32_t numTxBytes) {
+uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 	uint32_t lIndex = 0;
 
 	for (lIndex = 0; lIndex < numTxBytes; lIndex++) {

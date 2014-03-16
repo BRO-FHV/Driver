@@ -148,6 +148,13 @@ void UartEnable(uint32_t baseAddr);
 void UartConfigure(uint32_t baseAddr, uint32_t baudRate);
 
 /**
+ * \brief This function enables UART interrupt
+ *
+ * \return none
+ */
+void UartIntEnable(void);
+
+/**
  * \brief This function sends a message over UART identified with base address
  *
  * \param baseAddr 		basic address of module
