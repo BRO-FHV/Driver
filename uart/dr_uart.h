@@ -11,6 +11,7 @@
 #define UART_H_
 
 #include <inttypes.h>
+#include <hw_uart.h>
 
 // Values to configure the Operating modes of UART.
 #define UART16x_OPER_MODE                   (UART_MDR1_MODE_SELECT_UART16X)
@@ -107,6 +108,33 @@
 #define UART_DMA_MODE_2_ENABLE              (UART_SCR_DMA_MODE_2_MODE2)
 #define UART_DMA_MODE_3_ENABLE              (UART_SCR_DMA_MODE_2_MODE3)
 
+// enabling/disabling the interrupts of UART
+#define UART_INT_CTS                        (UART_IER_CTS_IT)
+#define UART_INT_RTS                        (UART_IER_RTS_IT)
+#define UART_INT_XOFF                       (UART_IER_XOFF_IT)
+#define UART_INT_SLEEPMODE                  (UART_IER_SLEEP_MODE_IT)
+#define UART_INT_MODEM_STAT                 (UART_IER_MODEM_STS_IT)
+#define UART_INT_LINE_STAT                  (UART_IER_LINE_STS_IT)
+#define UART_INT_THR                        (UART_IER_THR_IT)
+#define UART_INT_RHR_CTI                    (UART_IER_RHR_IT)
+
+
+// Values pertaining to status of UART Interrupt sources
+#define UART_INTID_MODEM_STAT               (UART_IIR_IT_TYPE_MODEMINT << \
+                                             UART_IIR_IT_TYPE_SHIFT)
+#define UART_INTID_TX_THRES_REACH           (UART_IIR_IT_TYPE_THRINT << \
+                                             UART_IIR_IT_TYPE_SHIFT)
+#define UART_INTID_RX_THRES_REACH           (UART_IIR_IT_TYPE_RHRINT << \
+                                             UART_IIR_IT_TYPE_SHIFT)
+#define UART_INTID_RX_LINE_STAT_ERROR       (UART_IIR_IT_TYPE_RXSTATUSERROR << \
+                                             UART_IIR_IT_TYPE_SHIFT)
+#define UART_INTID_CHAR_TIMEOUT             (UART_IIR_IT_TYPE_RXTIMEOUT << \
+                                             UART_IIR_IT_TYPE_SHIFT)
+#define UART_INTID_XOFF_SPEC_CHAR_DETECT    (UART_IIR_IT_TYPE_XOFF << \
+                                             UART_IIR_IT_TYPE_SHIFT)
+#define UART_INTID_MODEM_SIG_STATE_CHANGE   (UART_IIR_IT_TYPE_STATECHANGE << \
+                                             UART_IIR_IT_TYPE_SHIFT)
+
 // Parameterized macro to configure the FIFO settings
 #define UART_FIFO_CONFIG(txGra, rxGra, txTrig, rxTrig, txClr, rxClr, dmaEnPath, dmaMode) \
                         ((uint32_t) \
@@ -152,7 +180,67 @@ void UartConfigure(uint32_t baseAddr, uint32_t baudRate);
  *
  * \return none
  */
-void UartIntEnable(void);
+void UartSystemIntEnable(void);
+
+/**
+ * \brief   This function enables the specified interrupts in the UART mode of
+ *          operation
+ *
+ * \param   baseAddr   Memory address of the UART instance being used.
+ * \param   intFlag   Bit mask value of the bits corresponding to Interrupt
+ *                    Enable Register(IER). This specifies the UART interrupts
+ *                    to be enabled.
+ *
+ *  'intFlag' can take one or a combination of the following macros:
+ *  - UART_INT_CTS - to enable Clear-To-Send interrupt,
+ *  - UART_INT_RTS - to enable Request-To-Send interrupt,
+ *  - UART_INT_XOFF - to enable XOFF interrupt,
+ *  - UART_INT_SLEEPMODE - to enable Sleep Mode,
+ *  - UART_INT_MODEM_STAT - to enable Modem Status interrupt,
+ *  - UART_INT_LINE_STAT - to enable Line Status interrupt,
+ *  - UART_INT_THR - to enable Transmitter Holding Register Empty interrupt,
+ *  - UART_INT_RHR_CTI - to enable Receiver Data available interrupt and
+ *                       Character timeout indication interrupt.
+ *
+ * \return  None.
+ *
+ * \note    This API modifies the contents of UART Interrupt Enable Register
+ *          (IER). Modifying the bits IER[7:4] requires that EFR[4] be set.
+ *          This API does the needful before it accesses IER.
+ *          Moreover, this API should be called when UART is operating in
+ *          UART 16x Mode, UART 13x Mode or UART 16x Auto-baud mode.\n
+ *
+ * \see uart_irda_cir.c::UARTIntEnable
+ */
+void UartIntEnable(uint32_t baseAddr, uint32_t intFlag);
+
+/**
+ * \brief   This function disables the specified interrupts in the UART mode of
+ *          operation.
+ *
+ * \param   baseAddr  Memory address of the UART instance being used.
+ * \param   intFlag   Bit mask value of the bits corresponding to Interrupt
+ *                    Enable Register(IER). This specifies the UART interrupts
+ *                    to be disabled.
+ *
+ *  'intFlag' can take one or a combination of the following macros:
+ *  - UART_INT_CTS - to disable Clear-To-Send interrupt,
+ *  - UART_INT_RTS - to disable Request-To-Send interrupt,
+ *  - UART_INT_XOFF - to disable XOFF interrupt,
+ *  - UART_INT_SLEEPMODE - to disable Sleep Mode,
+ *  - UART_INT_MODEM_STAT - to disable Modem Status interrupt,
+ *  - UART_INT_LINE_STAT - to disable Line Status interrupt,
+ *  - UART_INT_THR - to disable Transmitter Holding Register Empty interrupt,
+ *  - UART_INT_RHR_CTI - to disable Receiver Data available interrupt and
+ *                       Character timeout indication interrupt.
+ *
+ * \return  None
+ *
+ * \note  The note section of UARTIntEnable() also applies to this API.
+ *
+ * \see uart_irda_cir.c::UARTIntDisable
+ */
+void UartIntDisable(uint32_t baseAddr, uint32_t intFlag);
 
 /**
  * \brief This function sends a message over UART identified with base address
@@ -168,17 +256,6 @@ void UartIntEnable(void);
  *         calling this function has the responsibility of checking the TX
  *         FIFO status before using this API
  */
-uint32_t UartWrite(uint32_t baseAddr, char *pBuffer,
-		uint32_t numTxBytes);
-
-/**
- * \brief This function sends a message (until a "\r\n" found) over UART identified with base address
- *
- * \param baseAddr 		basic address of module
- * \param pBuffer 		pointer to message
- *
- * \return none
- */
-void UartWriteLine(uint32_t baseAddr, char *pBuffer);
+uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes);
 
 #endif /* UART_H_ */

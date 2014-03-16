@@ -8,12 +8,20 @@
  */
 
 #include <inttypes.h>
+#include <stdio.h>
 #include <soc_AM335x.h>
 #include <hw_beaglebone.h>
 #include <hw_uart.h>
+#include <hw_types.h>
 #include <basic.h>
 #include "../interrupt/dr_interrupt.h"
 #include "dr_uart.h"
+
+// FIFO size
+#define NUM_TX_BYTES_PER_TRANS    (56)
+
+// used to signify the application to transmit data to UART TX FIFO
+uint32_t txEmptyFlag = TRUE;
 
 // init function forward declaration
 extern void UartModuleReset(uint32_t baseAdd);
@@ -38,6 +46,13 @@ static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
 static void UartDivisorLatchDisable(uint32_t baseAdd);
 static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState);
 
+// write helper function
+static uint32_t UartWriteChunk(uint32_t baseAddr, char*pBuffer,
+		uint32_t numBytes);
+
+// interrupt
+uint32_t UartIntIdentityGet(uint32_t baseAdd);
+void UartInterrupt(void);
 /**
  * \brief Enable UART module identified by base address
  */
@@ -83,8 +98,103 @@ void UartConfigure(uint32_t baseAddr, uint32_t baudRate) {
 /**
  * \brief This function enables UART interrupt
  */
-void UartIntEnable(void) {
+void UartSystemIntEnable(void) {
+	// set uart interrrupt priority
+	IntPrioritySet(SYS_INT_UART0INT, 0, AINTC_HOSTINT_ROUTE_IRQ);
+
+	// register interrupt handler
+	IntRegister(SYS_INT_UART0INT, UartInterrupt);
+
+	// enable interrupt
 	IntHandlerEnable(SYS_INT_UART0INT);
+}
+
+/**
+ * \brief   This function enables the specified interrupts in the UART mode of
+ *          operation
+ *
+ * \see uart_irda_cir.c::UARTIntEnable
+ */
+void UartIntEnable(uint32_t baseAddr, uint32_t intFlag) {
+	uint32_t enhanFnBitVal = 0;
+	uint32_t lcrRegValue = 0;
+
+	// Switching to Register Configuration Mode B
+	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+
+	// Collecting the current value of EFR[4] and later setting it
+	enhanFnBitVal = reg32r(baseAddr, UART_EFR) & UART_EFR_ENHANCED_EN;
+	reg32m(baseAddr, UART_EFR, UART_EFR_ENHANCED_EN);
+
+	// Switching to Register Operational Mode of operation
+	UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
+
+	/*
+	 ** It is suggested that the System Interrupts for UART in the
+	 ** Interrupt Controller are enabled after enabling the peripheral
+	 ** interrupts of the UART using this API. If done otherwise, there
+	 ** is a risk of LCR value not getting restored and illicit characters
+	 ** transmitted or received from/to the UART. The situation is explained
+	 ** below.
+	 ** The scene is that the system interrupt for UART is already enabled and
+	 ** the current API is invoked. On enabling the interrupts corresponding
+	 ** to IER[7:4] bits below, if any of those interrupt conditions
+	 ** already existed, there is a possibility that the control goes to
+	 ** Interrupt Service Routine (ISR) without executing the remaining
+	 ** statements in this API. Executing the remaining statements is
+	 ** critical in that the LCR value is restored in them.
+	 ** However, there seems to be no risk in this API for enabling interrupts
+	 ** corresponding to IER[3:0] because it is done at the end and no
+	 ** statements follow that.
+	 */
+
+	// Programming the bits IER[7:4]
+	reg32m(baseAddr, UART_IER, (intFlag & 0xF0));
+
+	// Switching to Register Configuration Mode B
+	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+
+	// Restoring the value of EFR[4] to its original value
+	reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
+	reg32m(baseAddr, UART_EFR, enhanFnBitVal);
+
+	// Restoring the value of LCR
+	reg32w(baseAddr, UART_LCR, lcrRegValue);
+
+	// Programming the bits IER[3:0]
+	reg32m(baseAddr, UART_IER, (intFlag & 0x0F));
+}
+
+/**
+ * \brief   This function disables the specified interrupts in the UART mode of
+ *          operation
+ *
+ * \see uart_irda_cir.c::UARTIntDisable
+ */
+void UartIntDisable(uint32_t baseAddr, uint32_t intFlag) {
+	uint32_t enhanFnBitVal = 0;
+	uint32_t lcrRegValue = 0;
+
+	// Switching to Register Configuration Mode B
+	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+
+	// Collecting the current value of EFR[4] and later setting it
+	enhanFnBitVal = reg32r(baseAddr, UART_EFR) & UART_EFR_ENHANCED_EN;
+	reg32m(baseAddr, UART_EFR, UART_EFR_ENHANCED_EN);
+
+	// Switching to Register Operational Mode of operation
+	UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
+	reg32a(baseAddr, UART_IER, ~(intFlag & 0xFF));
+
+	// Switching to Register Configuration Mode B
+	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+
+	// Restoring the value of EFR[4] to its original value
+	reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
+	reg32m(baseAddr, UART_EFR, enhanFnBitVal);
+
+	/* Restoring the value of LCR. */
+	reg32w(baseAddr, UART_LCR, lcrRegValue);
 }
 
 /**
@@ -93,9 +203,45 @@ void UartIntEnable(void) {
  * \see uart_irda_cir.c::UARTFIFOWrite
  */
 uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
+	uint32_t bIndex = 0;
+	uint32_t numByteChunks = numTxBytes / NUM_TX_BYTES_PER_TRANS;
+	uint32_t remainBytes = numTxBytes % NUM_TX_BYTES_PER_TRANS;
+	uint32_t currNumTxBytes = 0;
+
+	while (bIndex < numByteChunks) {
+		if (TRUE == txEmptyFlag) {
+			// transmit one chunk
+			currNumTxBytes += UartWriteChunk(baseAddr, pBuffer + currNumTxBytes,
+					NUM_TX_BYTES_PER_TRANS);
+			bIndex++;
+
+			// set empty flag false
+			txEmptyFlag = FALSE;
+
+			// Re-enables the Transmit Interrupt
+			UartIntEnable(SOC_UART_0_REGS, UART_INT_THR);
+		}
+	}
+
+	// write last chunk
+	UartWriteChunk(baseAddr, pBuffer + currNumTxBytes, remainBytes);
+
+	// set empty flag false
+	txEmptyFlag = FALSE;
+
+	// Re-enables the Transmit Interrupt
+	UartIntEnable(SOC_UART_0_REGS, UART_INT_THR);
+
+	wait(txEmptyFlag != FALSE);
+
+	return numTxBytes;
+}
+
+static uint32_t UartWriteChunk(uint32_t baseAddr, char*pBuffer,
+		uint32_t numBytes) {
 	uint32_t lIndex = 0;
 
-	for (lIndex = 0; lIndex < numTxBytes; lIndex++) {
+	for (lIndex = 0; lIndex < numBytes; lIndex++) {
 		// Writing data to the TX FIFO
 		reg32w(baseAddr, UART_THR, *pBuffer++);
 	}
@@ -104,14 +250,37 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 }
 
 /**
- * \brief sends a message until a "\r\n" found
+ * \brief handles uart interrupt
  */
-void UartWriteLine(uint32_t baseAddr, char *pBuffer) {
-	uint32_t pos = 0;
-	while (*pBuffer++ != '\r' && *pBuffer++ != '\n') {
-		pos += 2;
+void UartInterrupt(void) {
+	uint32_t intId = UartIntIdentityGet(SOC_UART_0_REGS);
+
+	switch (intId) {
+	case UART_INTID_TX_THRES_REACH:
+		printf("UART_INTID_TX_THRES_REACH\n");
+		// enable tx flag
+		txEmptyFlag = TRUE;
+
+		// Disable the THR interrupt. This has to be done even if the
+		UartIntDisable(SOC_UART_0_REGS, UART_INT_THR);
+		break;
+
+	case UART_INTID_RX_THRES_REACH:
+		printf("UART_INTID_RX_THRES_REACH\n");
+		break;
+
+	case UART_INTID_RX_LINE_STAT_ERROR:
+		printf("UART_INTID_RX_LINE_STAT_ERROR\n");
+		break;
+
+	case UART_INTID_CHAR_TIMEOUT:
+		printf("UART_INTID_CHAR_TIMEOUT\n");
+		break;
+
+	default:
+		printf("DEFAULT\n");
+		break;
 	}
-	UartWrite(baseAddr, pBuffer, pos + 1);
 }
 
 /**
@@ -690,4 +859,24 @@ static void UartTCRTLRBitValRestore(uint32_t baseAddr, uint32_t tcrTlrBitVal) {
 
 	/* Restoring the value of LCR. */
 	reg32w(baseAddr, UART_LCR, lcrRegValue);
+}
+
+/**
+ * \brief returns type of uart interrupt
+ *
+ * \see uart_irda_cir.c::UARTIntIdentityGet
+ */
+uint32_t UartIntIdentityGet(uint32_t baseAdd) {
+	uint32_t lcrRegValue = 0;
+	uint32_t retVal = 0;
+
+	// Switching to Register Operational Mode of operation
+	lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_OPERATIONAL_MODE);
+
+	retVal = (reg32r(baseAdd, UART_IIR) & UART_IIR_IT_TYPE);
+
+	/* Restoring the value of LCR. */
+	reg32w(baseAdd, UART_LCR, lcrRegValue);
+
+	return retVal;
 }

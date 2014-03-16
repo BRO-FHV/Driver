@@ -39,12 +39,19 @@ uint32_t uartBaseAddr;
  * \brief Enables Debug Console
  */
 void DebugEnable(uint32_t baseAddr) {
+	// save base address of used module
 	uartBaseAddr = baseAddr;
+	// enable uart module
 	UartEnable(baseAddr);
+	// configure uart module with 115200 baud rate
 	UartConfigure(baseAddr, BAUD_RATE_115200);
 
-    IntPrioritySet(SYS_INT_UART0INT, 0, AINTC_HOSTINT_ROUTE_IRQ);
-	UartIntEnable();
+	// enable uart interrupt
+	UartSystemIntEnable();
+
+	// enable all uart interrupts
+	UartIntEnable(uartBaseAddr,
+			(UART_INT_LINE_STAT | UART_INT_THR | UART_INT_RHR_CTI));
 }
 
 /**

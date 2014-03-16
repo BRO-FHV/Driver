@@ -7,6 +7,7 @@
  * TODO
  */
 
+#include <stdio.h>
 #include <basic.h>
 #include <soc_AM335x.h>
 #include <hw_interrupt.h>
@@ -19,8 +20,6 @@ static void IntDefaultHandler(void);
 
 void IntControllerInit(void) {
 	unsigned int intNum;
-
-	CPUirqe();
 
 	// Reset the ARM interrupt controller
 	reg32w(SOC_AINTC_REGS, INTC_SYSCONFIG, INTC_SYSCONFIG_SOFTRESET);
@@ -82,6 +81,9 @@ void IntIRQHandler() {
 
 	// call assigned interrupt handler
 	intHandlers[intNum]();
+
+	// reset interrupt pending bit
+	reg32m(SOC_AINTC_REGS, INTC_CONTROL, INTC_CONTROL_NEWIRQAGR);
 }
 
 /**
@@ -100,7 +102,7 @@ uint32_t IntActiveIrqNumGet(void) {
  *        without performing any operation
  */
 static void IntDefaultHandler(void) {
-	// Go Back, nothing to be done
+// Go Back, nothing to be done
 	;
 }
 
