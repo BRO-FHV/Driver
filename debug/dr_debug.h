@@ -14,15 +14,21 @@
 
 /**
  * \brief Enables Debug Console
+ *
+ * \param baseAddr		address of UART module
+ *
+ * \return none
  */
-void DebugEnable();
+void DebugEnable(uint32_t baseAddr);
 
 /**
  * \brief Sends a log message
  *
  * \param sender		sender of message
- * \param message
+ * \param message		message to send
+ *
+ * \return none
  */
-void DebugLog(uint32_t sender, char message[]);
+void DebugLog(char sender[], char * message);
 
 #endif /* DEBUG_H_ */

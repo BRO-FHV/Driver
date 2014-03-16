@@ -12,7 +12,7 @@
 #include <hw_beaglebone.h>
 #include <hw_uart.h>
 #include <basic.h>
-#include "uart.h"
+#include "dr_uart.h"
 
 // init function forward declaration
 extern void UartModuleReset(uint32_t baseAdd);
@@ -84,7 +84,7 @@ void UartConfigure(uint32_t baseAddr, uint32_t baudRate) {
  *
  * \see uart_irda_cir.c::UARTFIFOWrite
  */
-uint32_t UartWrite(uint32_t baseAddr, unsigned char *pBuffer,
+uint32_t UartWrite(uint32_t baseAddr, char *pBuffer,
 		uint32_t numTxBytes) {
 	uint32_t lIndex = 0;
 
@@ -94,6 +94,17 @@ uint32_t UartWrite(uint32_t baseAddr, unsigned char *pBuffer,
 	}
 
 	return lIndex;
+}
+
+/**
+ * \brief sends a message until a "\r\n" found
+ */
+void UartWriteLine(uint32_t baseAddr, char *pBuffer) {
+	uint32_t pos = 0;
+	while (*pBuffer++ != '\r' && *pBuffer++ != '\n') {
+		pos += 2;
+	}
+	UartWrite(baseAddr, pBuffer, pos + 1);
 }
 
 /**

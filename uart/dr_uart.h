@@ -161,7 +161,17 @@ void UartConfigure(uint32_t baseAddr, uint32_t baudRate);
  *         calling this function has the responsibility of checking the TX
  *         FIFO status before using this API
  */
-uint32_t UartWrite(uint32_t baseAddr, unsigned char *pBuffer,
+uint32_t UartWrite(uint32_t baseAddr, char *pBuffer,
 		uint32_t numTxBytes);
+
+/**
+ * \brief This function sends a message (until a "\r\n" found) over UART identified with base address
+ *
+ * \param baseAddr 		basic address of module
+ * \param pBuffer 		pointer to message
+ *
+ * \return none
+ */
+void UartWriteLine(uint32_t baseAddr, char *pBuffer);
 
 #endif /* UART_H_ */
