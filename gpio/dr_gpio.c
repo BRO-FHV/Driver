@@ -10,6 +10,7 @@
 #include <hw_cm_per.h>
 #include <soc_AM335x.h>
 #include "dr_gpio.h"
+#include <hw_gpio.h>
 
 #define HWREG(x)	(*((volatile unsigned int *)(x)))
 
@@ -220,5 +221,78 @@ void GPIO1ModuleClkConfig(void)
           (HWREG(SOC_CM_PER_REGS + CM_PER_L4LS_CLKSTCTRL) &
            CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_GPIO_1_GDBCLK));
 }
+
+
+unsigned int GPIO1Pin23PinMuxSetup(void)
+{
+
+	int status=FALSE;
+
+	HWREG(SOC_CONTROL_REGS + CONTROL_CONF_GPMC_A(7))=CONTROL_CONF_MUXMODE(7);
+            status = TRUE;
+
+
+    return status;
+}
+
+/**
+ * \brief  This API is used to enable the GPIO module. When the GPIO module
+ *         is enabled, the clocks to the module are not gated.
+ *
+ * \param  baseAdd    The memory address of the GPIO instance being used
+ *
+ * \return None
+ *
+ * \note   Enabling the GPIO module is a primary step before any other
+ *         configurations can be done.
+ */
+
+void GPIOModuleEnable(unsigned int baseAdd)
+{
+    /* Clearing the DISABLEMODULE bit in the Control(CTRL) register. */
+    HWREG(baseAdd + GPIO_CTRL) &= ~(GPIO_CTRL_DISABLEMODULE);
+}
+
+void GPIOModuleReset(unsigned int baseAdd)
+{
+    /*
+    ** Setting the SOFTRESET bit in System Configuration register.
+    ** Doing so would reset the GPIO module.
+    */
+    HWREG(baseAdd + GPIO_SYSCONFIG) |= (GPIO_SYSCONFIG_SOFTRESET);
+
+    /* Waiting until the GPIO Module is reset.*/
+    while(!(HWREG(baseAdd + GPIO_SYSSTATUS) & GPIO_SYSSTATUS_RESETDONE));
+}
+
+void GPIODirModeSet(unsigned int baseAdd,
+                    unsigned int pinNumber,
+                    unsigned int pinDirection)
+{
+    /* Checking if pin is required to be an output pin. */
+    if(GPIO_DIR_OUTPUT == pinDirection)
+    {
+        HWREG(baseAdd + GPIO_OE) &= ~(1 << pinNumber);
+    }
+    else
+    {
+        HWREG(baseAdd + GPIO_OE) |= (1 << pinNumber);
+    }
+}
+
+void GPIOPinWrite(unsigned int baseAdd,
+                  unsigned int pinNumber,
+                  unsigned int pinValue)
+{
+    if(GPIO_PIN_HIGH == pinValue)
+    {
+        HWREG(baseAdd + GPIO_SETDATAOUT) = (1 << pinNumber);
+    }
+    else
+    {
+        HWREG(baseAdd + GPIO_CLEARDATAOUT) = (1 << pinNumber);
+    }
+}
+
 
 

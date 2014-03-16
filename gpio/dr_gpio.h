@@ -15,8 +15,8 @@
 *****************************************************************************/
 
 /* Values used to configure the direction of GPIO pins. */
-#define GPIO_DIR_INPUT                   (GPIO_OE_OUTPUTEN_DISABLED)
-#define GPIO_DIR_OUTPUT                  (GPIO_OE_OUTPUTEN_ENABLED)
+#define GPIO_DIR_INPUT                   (0x1u)
+#define GPIO_DIR_OUTPUT                  (0x0u)
 
 /* Values helping to decide the value on a GPIO pin. */
 #define GPIO_PIN_LOW                     (0x0)
@@ -155,10 +155,15 @@ extern void GPIODebounceTimeConfig(unsigned int baseAdd,
 extern unsigned int GPIORevisionInfoGet(unsigned int baseAdd);
 extern void gpioContextSave(unsigned int baseAdd, GPIOCONTEXT *contextPtr);
 
-extern void GPIO1ModuleClkConfig(void);
+
 extern void gpioContextRestore(unsigned int baseAdd, GPIOCONTEXT *contextPtr);
 
-
+extern void GPIO1ModuleClkConfig(void);
+extern unsigned int GPIO1Pin23PinMuxSetup(void);
+extern void GPIOModuleEnable(unsigned int baseAdd);
+extern void GPIOModuleReset(unsigned int baseAdd);
+extern void GPIODirModeSet(unsigned int baseAdd, unsigned int pinNumber,unsigned int pinDirection);
+extern void GPIOPinWrite(unsigned int baseAdd,  unsigned int pinNumber,unsigned int pinValue);
 
 
 
