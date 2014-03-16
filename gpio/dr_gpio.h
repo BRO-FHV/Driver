@@ -158,13 +158,19 @@ extern void gpioContextSave(unsigned int baseAdd, GPIOCONTEXT *contextPtr);
 
 extern void gpioContextRestore(unsigned int baseAdd, GPIOCONTEXT *contextPtr);
 
+extern void GPIO0ModuleClkConfig(void);
 extern void GPIO1ModuleClkConfig(void);
+extern void GPIO3ModuleClkConfig(void);
+
+
 extern unsigned int GPIO1Pin23PinMuxSetup(void);
 extern void GPIOModuleEnable(unsigned int baseAdd);
 extern void GPIOModuleReset(unsigned int baseAdd);
 extern void GPIODirModeSet(unsigned int baseAdd, unsigned int pinNumber,unsigned int pinDirection);
 extern void GPIOPinWrite(unsigned int baseAdd,  unsigned int pinNumber,unsigned int pinValue);
-
+extern unsigned int GPIOPinRead(unsigned int baseAdd,unsigned int pinNumber);
+extern void GPIOMultiplePinsWrite(unsigned int baseAdd,unsigned int setMask,unsigned int clrMask);
+extern unsigned int GPIOMultiplePinsRead(unsigned int baseAdd,unsigned int readMask);
 
 
 #endif /* DR_GPIO_H_ */
