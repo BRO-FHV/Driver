@@ -50,8 +50,7 @@ static void UartDivisorLatchDisable(uint32_t baseAdd);
 static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState);
 
 // write helper function
-static uint32_t UartWriteChunk(uint32_t baseAddr, char*pBuffer,
-		uint32_t numBytes);
+static uint32_t UartWriteChunk(uint32_t baseAddr);
 
 // interrupt
 uint32_t UartIntIdentityGet(uint32_t baseAdd);
@@ -222,9 +221,11 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 	uint32_t bIndex = numByteChunks;
 	uint32_t currNumTxBytes = 0;
 
+	wChunk_t* chunk;
+
 	while (bIndex > 0) {
 		// create chunk
-		wChunk_t* chunk = (wChunk_t*) malloc(sizeof(wChunk_t));
+		chunk = (wChunk_t*) malloc(sizeof(wChunk_t));
 		chunk->size = NUM_TX_BYTES_PER_TRANS;
 		chunk->message = (char*) malloc(sizeof(NUM_TX_BYTES_PER_TRANS));
 		strncat(chunk->message, pBuffer + currNumTxBytes,
@@ -237,7 +238,7 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 	}
 
 	// create chunk
-	wChunk_t* chunk = (wChunk_t*) malloc(sizeof(wChunk_t));
+	chunk = (wChunk_t*) malloc(sizeof(wChunk_t));
 	chunk->size = remainBytes;
 	chunk->message = (char*) malloc(remainBytes);
 	strncat(chunk->message, pBuffer + currNumTxBytes, remainBytes);
@@ -246,16 +247,27 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 	// save chunk
 	LinkedListAppendFront(chunkList, chunk);
 
+	UartWriteChunk(baseAddr);
+
 	return numTxBytes;
 }
 
-static uint32_t UartWriteChunk(uint32_t baseAddr, char*pBuffer,
-		uint32_t numBytes) {
+static uint32_t UartWriteChunk(uint32_t baseAddr) {
 	uint32_t lIndex = 0;
 
-	for (lIndex = 0; lIndex < numBytes; lIndex++) {
-		// Writing data to the TX FIFO
-		reg32w(baseAddr, UART_THR, *pBuffer++);
+	wChunk_t* chunk = (wChunk_t*) LinkedListGetFront(chunkList);
+	if (chunk != NULL) {
+		char* pBuffer = chunk->message;
+
+		for (lIndex = 0; lIndex < chunk->size; lIndex++) {
+			// Writing data to the TX FIFO
+			reg32w(baseAddr, UART_THR, *pBuffer++);
+		}
+
+		free(chunk->message);
+		free(chunk);
+
+		UartIntEnable(baseAddr, UART_INT_THR);
 	}
 
 	return lIndex;
@@ -270,11 +282,11 @@ void UartInterrupt(void) {
 	switch (intId) {
 	case UART_INTID_TX_THRES_REACH:
 		printf("UART_INTID_TX_THRES_REACH\n");
-		// enable tx flag
-		//txEmptyFlag = TRUE;
-
 		// Disable the THR interrupt. This has to be done even if the
 		UartIntDisable(SOC_UART_0_REGS, UART_INT_THR);
+
+		// write a chunk
+		uint32_t l = UartWriteChunk(SOC_UART_0_REGS);
 		break;
 
 	case UART_INTID_RX_THRES_REACH:
