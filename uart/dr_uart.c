@@ -255,19 +255,23 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 static uint32_t UartWriteChunk(uint32_t baseAddr) {
 	uint32_t lIndex = 0;
 
-	wChunk_t* chunk = (wChunk_t*) LinkedListGetFront(chunkList);
-	if (chunk != NULL) {
-		char* pBuffer = chunk->message;
+	if (txEmptyFlag == TRUE) {
+		// TODO get back!
+		wChunk_t* chunk = (wChunk_t*) LinkedListGetFront(chunkList);
+		if (chunk != NULL ) {
+			char* pBuffer = chunk->message;
 
-		for (lIndex = 0; lIndex < chunk->size; lIndex++) {
-			// Writing data to the TX FIFO
-			reg32w(baseAddr, UART_THR, *pBuffer++);
+			for (lIndex = 0; lIndex < chunk->size; lIndex++) {
+				// Writing data to the TX FIFO
+				reg32w(baseAddr, UART_THR, *pBuffer++);
+			}
+
+			free(chunk->message);
+			free(chunk);
+
+			txEmptyFlag = FALSE;
+			UartIntEnable(baseAddr, UART_INT_THR);
 		}
-
-		free(chunk->message);
-		free(chunk);
-
-		UartIntEnable(baseAddr, UART_INT_THR);
 	}
 
 	return lIndex;
@@ -282,6 +286,9 @@ void UartInterrupt(void) {
 	switch (intId) {
 	case UART_INTID_TX_THRES_REACH:
 		printf("UART_INTID_TX_THRES_REACH\n");
+		// enable chunk
+		txEmptyFlag = TRUE;
+
 		// Disable the THR interrupt. This has to be done even if the
 		UartIntDisable(SOC_UART_0_REGS, UART_INT_THR);
 
