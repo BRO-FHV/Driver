@@ -8,12 +8,15 @@
  */
 
 #include <inttypes.h>
+#include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <soc_AM335x.h>
 #include <hw_beaglebone.h>
 #include <hw_uart.h>
 #include <hw_types.h>
 #include <basic.h>
+#include <list/linkedlist.h>
 #include "../interrupt/dr_interrupt.h"
 #include "dr_uart.h"
 
@@ -53,6 +56,14 @@ static uint32_t UartWriteChunk(uint32_t baseAddr, char*pBuffer,
 // interrupt
 uint32_t UartIntIdentityGet(uint32_t baseAdd);
 void UartInterrupt(void);
+
+typedef struct WriteChunk {
+	uint32_t size;
+	char* message;
+} wChunk_t;
+
+ll_t* chunkList;
+
 /**
  * \brief Enable UART module identified by base address
  */
@@ -65,6 +76,9 @@ void UartEnable(uint32_t baseAddr) {
 
 	// Performing a module reset
 	UartModuleReset(SOC_UART_0_REGS);
+
+	// crate chunklist
+	chunkList = LinkedListCreate();
 }
 
 /**
@@ -203,36 +217,34 @@ void UartIntDisable(uint32_t baseAddr, uint32_t intFlag) {
  * \see uart_irda_cir.c::UARTFIFOWrite
  */
 uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
-	uint32_t bIndex = 0;
 	uint32_t numByteChunks = numTxBytes / NUM_TX_BYTES_PER_TRANS;
 	uint32_t remainBytes = numTxBytes % NUM_TX_BYTES_PER_TRANS;
+	uint32_t bIndex = numByteChunks;
 	uint32_t currNumTxBytes = 0;
 
-	while (bIndex < numByteChunks) {
-		if (TRUE == txEmptyFlag) {
-			// transmit one chunk
-			currNumTxBytes += UartWriteChunk(baseAddr, pBuffer + currNumTxBytes,
-					NUM_TX_BYTES_PER_TRANS);
-			bIndex++;
+	while (bIndex > 0) {
+		// create chunk
+		wChunk_t* chunk = (wChunk_t*) malloc(sizeof(wChunk_t));
+		chunk->size = NUM_TX_BYTES_PER_TRANS;
+		chunk->message = (char*) malloc(sizeof(NUM_TX_BYTES_PER_TRANS));
+		strncat(chunk->message, pBuffer + currNumTxBytes,
+				NUM_TX_BYTES_PER_TRANS);
+		currNumTxBytes += NUM_TX_BYTES_PER_TRANS;
 
-			// set empty flag false
-			txEmptyFlag = FALSE;
-
-			// Re-enables the Transmit Interrupt
-			UartIntEnable(SOC_UART_0_REGS, UART_INT_THR);
-		}
+		// save chunk
+		LinkedListAppendFront(chunkList, chunk);
+		--bIndex;
 	}
 
-	// write last chunk
-	UartWriteChunk(baseAddr, pBuffer + currNumTxBytes, remainBytes);
+	// create chunk
+	wChunk_t* chunk = (wChunk_t*) malloc(sizeof(wChunk_t));
+	chunk->size = remainBytes;
+	chunk->message = (char*) malloc(remainBytes);
+	strncat(chunk->message, pBuffer + currNumTxBytes, remainBytes);
+	currNumTxBytes += remainBytes;
 
-	// set empty flag false
-	txEmptyFlag = FALSE;
-
-	// Re-enables the Transmit Interrupt
-	UartIntEnable(SOC_UART_0_REGS, UART_INT_THR);
-
-	wait(txEmptyFlag != FALSE);
+	// save chunk
+	LinkedListAppendFront(chunkList, chunk);
 
 	return numTxBytes;
 }
@@ -259,7 +271,7 @@ void UartInterrupt(void) {
 	case UART_INTID_TX_THRES_REACH:
 		printf("UART_INTID_TX_THRES_REACH\n");
 		// enable tx flag
-		txEmptyFlag = TRUE;
+		//txEmptyFlag = TRUE;
 
 		// Disable the THR interrupt. This has to be done even if the
 		UartIntDisable(SOC_UART_0_REGS, UART_INT_THR);
