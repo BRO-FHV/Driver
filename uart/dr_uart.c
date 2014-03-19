@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <soc_AM335x.h>
-#include <hw_beaglebone.h>
+#include <platform/hw_beaglebone.h>
 #include <hw_uart.h>
 #include <hw_types.h>
 #include <basic.h>
