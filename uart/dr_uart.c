@@ -227,7 +227,7 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 		// create chunk
 		chunk = (wChunk_t*) malloc(sizeof(wChunk_t));
 		chunk->size = NUM_TX_BYTES_PER_TRANS;
-		chunk->message = (char*) malloc(sizeof(NUM_TX_BYTES_PER_TRANS));
+		chunk->message = (char*) malloc(NUM_TX_BYTES_PER_TRANS);
 		strncat(chunk->message, pBuffer + currNumTxBytes,
 				NUM_TX_BYTES_PER_TRANS);
 		currNumTxBytes += NUM_TX_BYTES_PER_TRANS;
