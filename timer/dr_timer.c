@@ -18,13 +18,13 @@
 
 uint16_t timers[NUMBER_OF_TIMERS];
 
-uint32_t GetTimerBaseAdr(Timer timer);
-void SetIrqWakeenMode(uint32_t baseAdr, IrqWakeen irqwakeen, uint32_t irqWakeenRegister);
-void SetIrqMode(uint32_t baseAdr, IrqMode irqMode, uint32_t irqRegister);
-void ResetTimer(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t twer,  uint32_t tisr,  uint32_t ttgr, uint32_t tclr, uint32_t tcrr);
-void TimerBasicConfigurationCore(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t tisr,  uint32_t ttgr, uint32_t matchValue, uint32_t loadValue);
-void TimerConfigureCE(uint32_t baseAdr, uint32_t tclr, uint8_t enable);
-void TimerConfigureAR(uint32_t baseAdr, uint32_t tclr, uint8_t enable);
+uint32_t GetTimerBaseAdr(volatile Timer timer);
+void SetIrqWakeenMode(volatile uint32_t baseAdr,volatile IrqWakeen irqwakeen,volatile uint32_t irqWakeenRegister);
+void SetIrqMode(volatile uint32_t baseAdr,volatile IrqMode irqMode,volatile uint32_t irqRegister);
+void ResetTimer(volatile uint32_t baseAdr,volatile uint32_t tmar,volatile uint32_t tldr,volatile  uint32_t twer, volatile uint32_t tisr, volatile uint32_t ttgr,volatile uint32_t tclr,volatile uint32_t tcrr);
+void TimerBasicConfigurationCore(volatile uint32_t baseAdr,volatile uint32_t tmar,volatile uint32_t tldr,volatile  uint32_t tisr,volatile  uint32_t ttgr,volatile uint32_t matchValue,volatile uint32_t loadValue);
+void TimerConfigureCE(volatile uint32_t baseAdr,volatile uint32_t tclr,volatile uint8_t enable);
+void TimerConfigureAR(volatile uint32_t baseAdr,volatile uint32_t tclr,volatile uint8_t enable);
 uint32_t GetTimerInterruptCode(Timer timer);
 
 int TimerEnable(Timer timer) {
@@ -61,9 +61,9 @@ int TimerDisable(Timer timer) {
 	}
 
 	if(1 == timer) {
-		reg32w(baseAdr, TIMER1_TCLR, TCLR_ST);
+		reg32wor(baseAdr, TIMER1_TCLR, TCLR_ST);
 	} else {
-		reg32w(baseAdr, TIMER_TCLR, TCLR_ST);
+		reg32wor(baseAdr, TIMER_TCLR, TCLR_ST);
 	}
 
 	//TODO disable interrupts
@@ -109,8 +109,8 @@ int TimerBasicConfiguration(volatile Timer timer,volatile uint8_t enableCompareM
 	}
 
 	TimerReset(timer);
-
-	if(1 == timer) {
+	volatile uint8_t eins = 1;
+	if(eins == timer) {
 		//timer 1 ms
 		TimerBasicConfigurationCore(baseAdr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TISR, TIMER1_TTGR, matchValue, loadValue);
 
@@ -125,12 +125,12 @@ int TimerBasicConfiguration(volatile Timer timer,volatile uint8_t enableCompareM
 	}
 
 	//reset counter register
-	reg32w(baseAdr, 1 == timer ? TIMER1_TCRR : TIMER_TCRR, RESET_VALUE);
+	reg32wor(baseAdr, 1 == timer ? TIMER1_TCRR : TIMER_TCRR, RESET_VALUE);
 
 	return 0;
 }
 
-//TODO register interrupt routine
+
 int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,volatile IrqWakeen irqwakeen,volatile InterruptRoutine routine) {
 	if(0 < timers[timer] || NULL == routine) {
 		return -1;
@@ -146,12 +146,12 @@ int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,vo
 		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER1_TWER);
 		SetIrqMode(baseAdr, irqMode, TIMER1_TIER);
 
-		reg32w(DMTIMER2, TIMER1_TISR, 0x03);
+		reg32wor(baseAdr, TIMER1_TISR, 0x03);
 	} else {
 		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER_IRQWAKEEN);
 		SetIrqMode(baseAdr, irqMode, TIMER_IRQENABLE_SET);
 
-		reg32w(DMTIMER2, TIMER_IRQSTATUS, 0x03);
+		reg32wor(baseAdr, TIMER_IRQSTATUS, 0x03);
 	}
 	IntHandlerEnable(GetTimerInterruptCode(timer));
 	IntRegister(GetTimerInterruptCode(timer),routine);
@@ -159,9 +159,10 @@ int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,vo
 	return 0;
 }
 
-void TimerConfigureCE(volatile uint32_t baseAdr, volatile uint32_t tclr,volatile uint8_t enable) {
+void TimerConfigureCE(volatile uint32_t baseAdr, volatile uint32_t tclr,volatile uint8_t enable)
+{
 	if(1 == enable) {
-		reg32w(baseAdr, tclr, TCLR_CE);
+		reg32wor(baseAdr, tclr, TCLR_CE);
 	} else {
 		reg32wxor(baseAdr, tclr, TCLR_CE);
 	}
@@ -177,30 +178,30 @@ void TimerConfigureAR(volatile uint32_t baseAdr,volatile uint32_t tclr,volatile 
 
 void TimerBasicConfigurationCore(volatile uint32_t baseAdr, volatile uint32_t tmar,volatile uint32_t tldr, volatile uint32_t tisr, volatile uint32_t ttgr,volatile uint32_t matchValue,volatile uint32_t loadValue) {
 	//defines the match value (e.g. interrupt is raised, if this value is reached)
-	reg32w(baseAdr, tmar, matchValue);
+	reg32wor(baseAdr, tmar, matchValue);
 	//defines where the timer should start to count (e.g. after a auto reload)
-	reg32w(baseAdr, tldr, loadValue);
+	reg32wor(baseAdr, tldr, loadValue);
 	//use default
-	reg32w(baseAdr, tisr, 0x03);
+	reg32wor(baseAdr, tisr, 0x03);
 	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
 	//Reload will be done regardless of the AR field value of TCLR register.
-	reg32w(baseAdr, ttgr, RESET_VALUE);
+	reg32wor(baseAdr, ttgr, RESET_VALUE);
 }
 
 void SetIrqWakeenMode(volatile uint32_t baseAdr,volatile IrqWakeen irqwakeen,volatile uint32_t irqWakeenRegister) {
 	//Wakeup-enabled events taking place when module is idle will generate an asynchronous wakeup
 	switch(irqwakeen) {
 	case IrqWakeen_MAT_WUP_ENA:
-		reg32w(baseAdr, irqWakeenRegister, IRQWAKEEN_MAT_WUP_ENA);
+		reg32wor(baseAdr, irqWakeenRegister, IRQWAKEEN_MAT_WUP_ENA);
 		break;
 	case IrqWakeen_OVF_WUP_ENA:
-		reg32w(baseAdr, irqWakeenRegister, IRQWAKEEN_OVF_WUP_ENA);
+		reg32wor(baseAdr, irqWakeenRegister, IRQWAKEEN_OVF_WUP_ENA);
 		break;
 	case IrqWakeen_TCAR_WUP_ENA:
-		reg32w(baseAdr, irqWakeenRegister, IRQWAKEEN_TCAR_WUP_ENA);
+		reg32wor(baseAdr, irqWakeenRegister, IRQWAKEEN_TCAR_WUP_ENA);
 		break;
 	case IrqWakeen_ALL:
-		reg32w(baseAdr, irqWakeenRegister, IRQWAKEEN_MAT_WUP_ENA & IRQWAKEEN_OVF_WUP_ENA & IRQWAKEEN_TCAR_WUP_ENA);
+		reg32wor(baseAdr, irqWakeenRegister, IRQWAKEEN_MAT_WUP_ENA & IRQWAKEEN_OVF_WUP_ENA & IRQWAKEEN_TCAR_WUP_ENA);
 		break;
 	case IrqWakeen_NONE:
 		//TODO
@@ -211,16 +212,16 @@ void SetIrqWakeenMode(volatile uint32_t baseAdr,volatile IrqWakeen irqwakeen,vol
 void SetIrqMode(uint32_t baseAdr, IrqMode irqMode, uint32_t irqRegister) {
 	switch (irqMode) {
 	case IrqMode_MATCH:
-		reg32w(baseAdr, irqRegister, IRQENABLE_MAT_EN_FLAG);
+		reg32wor(baseAdr, irqRegister, IRQENABLE_MAT_EN_FLAG);
 		break;
 	case IrqMode_CAPTURE:
-		reg32w(baseAdr, irqRegister, IRQENABLE_TCAR_EN_FLAG);
+		reg32wor(baseAdr, irqRegister, IRQENABLE_TCAR_EN_FLAG);
 		break;
 	case IrqMode_OVERFLOW:
-		reg32w(baseAdr, irqRegister, IRQENABLE_OVF_EN_FLAG);
+		reg32wor(baseAdr, irqRegister, IRQENABLE_OVF_EN_FLAG);
 		break;
 	case IrqMode_ALL:
-		reg32w(baseAdr, irqRegister, IRQENABLE_OVF_EN_FLAG & IRQENABLE_MAT_EN_FLAG & IRQENABLE_TCAR_EN_FLAG);
+		reg32wor(baseAdr, irqRegister, IRQENABLE_OVF_EN_FLAG & IRQENABLE_MAT_EN_FLAG & IRQENABLE_TCAR_EN_FLAG);
 		break;
 	case IrqMode_NONE:
 		//TODO
@@ -276,11 +277,11 @@ uint32_t GetTimerInterruptCode(Timer timer) {
 }
 
 void ResetTimer(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t twer,  uint32_t tisr,  uint32_t ttgr, uint32_t tclr, uint32_t tcrr) {
-	reg32w(baseAdr, tmar, RESET_VALUE);
-	reg32w(baseAdr, tldr, RESET_VALUE);
-	reg32w(baseAdr, twer, RESET_VALUE);
-	reg32w(baseAdr, tisr, RESET_VALUE);
-	reg32w(baseAdr, ttgr, RESET_VALUE);
-	reg32w(baseAdr, tclr, RESET_VALUE);
-	reg32w(baseAdr, tcrr, RESET_VALUE);
+	reg32wor(baseAdr, tmar, RESET_VALUE);
+	reg32wor(baseAdr, tldr, RESET_VALUE);
+	reg32wor(baseAdr, twer, RESET_VALUE);
+	reg32wor(baseAdr, tisr, RESET_VALUE);
+	reg32wor(baseAdr, ttgr, RESET_VALUE);
+	reg32wor(baseAdr, tclr, RESET_VALUE);
+	reg32wor(baseAdr, tcrr, RESET_VALUE);
 }

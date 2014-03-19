@@ -53,7 +53,7 @@ int TimerReset(Timer timer);
  *
  * \return 0 on success, -1 on failure
  */
-int TimerBasicConfiguration(Timer timer, uint8_t enableCompareMode, uint8_t enableAutoReload, uint32_t matchValue, uint32_t loadValue, uint16_t clockSource, uint8_t pre, uint8_t ptv);
+int TimerBasicConfiguration(volatile Timer timer,volatile uint8_t enableCompareMode,volatile uint8_t enableAutoReload,volatile uint32_t matchValue,volatile uint32_t loadValue,volatile uint16_t clockSource,volatile uint8_t pre,volatile uint8_t ptv);
 
 /**
  * \brief
@@ -63,6 +63,6 @@ int TimerBasicConfiguration(Timer timer, uint8_t enableCompareMode, uint8_t enab
  *
  * \return 0 on success, -1 on failure
  */
-int TimerInterruptConfiguration(Timer timer, IrqMode irqMode, IrqWakeen irqwakeen, InterruptRoutine routine);
+int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,volatile IrqWakeen irqwakeen,volatile InterruptRoutine routine);
 
 #endif /* DR_TIMER_H_ */
