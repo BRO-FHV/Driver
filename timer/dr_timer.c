@@ -6,7 +6,7 @@
  * Description: 
  * TODO
  */
-
+#include <stdio.h>
 #include <inttypes.h>
 #include <hw_timer.h>
 #include <basic.h>
@@ -21,7 +21,7 @@ uint32_t GetTimerBaseAdr(Timer timer);
 void SetIrqWakeenMode(uint32_t baseAdr, IrqWakeen irqwakeen, uint32_t irqWakeenRegister);
 void SetIrqMode(uint32_t baseAdr, IrqMode irqMode, uint32_t irqRegister);
 void ResetTimer(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t twer,  uint32_t tisr,  uint32_t ttgr, uint32_t tclr, uint32_t tcrr);
-void TimerBasicConfiguration(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t tisr,  uint32_t ttgr, uint32_t matchValue, uint32_t loadValue);
+void TimerBasicConfigurationCore(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t tisr,  uint32_t ttgr, uint32_t matchValue, uint32_t loadValue);
 void TimerConfigureCE(uint32_t baseAdr, uint32_t tclr, uint8_t enable);
 void TimerConfigureAR(uint32_t baseAdr, uint32_t tclr, uint8_t enable);
 
@@ -88,7 +88,7 @@ int TimerReset(Timer timer) {
 
 // TODO: change compareModeOn,  autoReloadOn,... to boolean..
 // TODO: prescaler, timer source
-int TimerConfigure(Timer timer, uint8_t enableCompareMode, uint8_t enableAutoReload, IrqMode irqMode, uint32_t matchValue, uint32_t loadValue, uint16_t clockSource, uint8_t pre, uint8_t ptv, IrqWakeen irqwakeen) {
+int TimerBasicConfiguration(Timer timer, uint8_t enableCompareMode, uint8_t enableAutoReload, uint32_t matchValue, uint32_t loadValue, uint16_t clockSource, uint8_t pre, uint8_t ptv) {
 	if(0 < timers[timer]) {
 		return -1;
 	}
@@ -108,25 +108,16 @@ int TimerConfigure(Timer timer, uint8_t enableCompareMode, uint8_t enableAutoRel
 
 	if(1 == timer) {
 		//timer 1 ms
-		TimerBasicConfiguration(baseAdr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TISR, TIMER1_TTGR, matchValue, loadValue);
+		TimerBasicConfigurationCore(baseAdr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TISR, TIMER1_TTGR, matchValue, loadValue);
 
 		TimerConfigureCE(baseAdr, TIMER1_TCLR, enableCompareMode);
 		TimerConfigureAR(baseAdr, TIMER1_TCLR, enableAutoReload);
-
-		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER1_TWER);
-		SetIrqMode(baseAdr, irqMode, TIMER1_TIER);
-
-		//reset counter register
-		reg32w(baseAdr, TIMER1_TCRR, RESET_VALUE);
 	} else {
 		//timer 0, 2 - 7
-		TimerBasicConfiguration(baseAdr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQSTATUS, TIMER_TTGR, matchValue, loadValue);
+		TimerBasicConfigurationCore(baseAdr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQSTATUS, TIMER_TTGR, matchValue, loadValue);
 
 		TimerConfigureCE(baseAdr, TIMER_TCLR, enableCompareMode);
 		TimerConfigureAR(baseAdr, TIMER_TCLR, enableAutoReload);
-
-		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER_IRQWAKEEN);
-		SetIrqMode(baseAdr, irqMode, TIMER_IRQENABLE_SET);
 	}
 
 	//reset counter register
@@ -135,8 +126,26 @@ int TimerConfigure(Timer timer, uint8_t enableCompareMode, uint8_t enableAutoRel
 	return 0;
 }
 
-int TimerInterrupt(Timer timer) {
-	//TODO impl
+//TODO register interrupt routine
+int TimerInterruptConfiguration(Timer timer, IrqMode irqMode, IrqWakeen irqwakeen, InterruptRoutine routine) {
+	if(0 < timers[timer] || NULL == routine) {
+		return -1;
+	}
+
+	uint32_t baseAdr = GetTimerBaseAdr(timer);
+
+	if(UINT32_MAX == baseAdr) {
+		return -1; //failure
+	}
+
+	if(1 == timer) {
+		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER1_TWER);
+		SetIrqMode(baseAdr, irqMode, TIMER1_TIER);
+	} else {
+		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER_IRQWAKEEN);
+		SetIrqMode(baseAdr, irqMode, TIMER_IRQENABLE_SET);
+	}
+
 	return 0;
 }
 
@@ -156,7 +165,7 @@ void TimerConfigureAR(uint32_t baseAdr, uint32_t tclr, uint8_t enable) {
 	}
 }
 
-void TimerBasicConfiguration(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t tisr,  uint32_t ttgr, uint32_t matchValue, uint32_t loadValue) {
+void TimerBasicConfigurationCore(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t tisr,  uint32_t ttgr, uint32_t matchValue, uint32_t loadValue) {
 	//defines the match value (e.g. interrupt is raised, if this value is reached)
 	reg32w(baseAdr, tmar, matchValue);
 	//defines where the timer should start to count (e.g. after a auto reload)

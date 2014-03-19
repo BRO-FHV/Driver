@@ -13,6 +13,9 @@
 typedef enum { Timer_TIMER0 = 0, Timer_TIMER1MS, Timer_TIMER2, Timer_TIMER3, Timer_TIMER4, Timer_TIMER5, Timer_TIMER6, Timer_TIMER7 } Timer;
 typedef enum { IrqMode_MATCH = 0, IrqMode_OVERFLOW, IrqMode_CAPTURE, IrqMode_ALL, IrqMode_NONE } IrqMode;
 typedef enum { IrqWakeen_MAT_WUP_ENA = 0, IrqWakeen_OVF_WUP_ENA, IrqWakeen_TCAR_WUP_ENA, IrqWakeen_ALL, IrqWakeen_NONE } IrqWakeen;
+
+typedef void (*InterruptRoutine)(void);
+
 /**
  * \brief enable a timer
  *
@@ -49,7 +52,7 @@ int TimerReset(Timer timer);
  *
  * \return 0 on success, -1 on failure
  */
-int TimerConfigure(Timer timer, uint8_t enableCompareMode, uint8_t enableAutoReload, IrqMode irqMode, uint32_t matchValue, uint32_t loadValue, uint16_t clockSource, uint8_t pre, uint8_t ptv, IrqWakeen irqwakeen);
+int TimerBasicConfiguration(Timer timer, uint8_t enableCompareMode, uint8_t enableAutoReload, uint32_t matchValue, uint32_t loadValue, uint16_t clockSource, uint8_t pre, uint8_t ptv);
 
 /**
  * \brief
@@ -59,5 +62,6 @@ int TimerConfigure(Timer timer, uint8_t enableCompareMode, uint8_t enableAutoRel
  *
  * \return 0 on success, -1 on failure
  */
-int TimerInterrupt(Timer timer);
+int TimerInterruptConfiguration(Timer timer, IrqMode irqMode, IrqWakeen irqwakeen, InterruptRoutine routine);
+
 #endif /* DR_TIMER_H_ */
