@@ -49,7 +49,7 @@ void IntPrioritySet(unsigned int intrNum, unsigned int priority,
  *
  * \param intrNum		number of interrupt
  */
-void IntHandlerEnable(uint32_t intNum) {
+void IntHandlerEnable(volatile uint32_t intNum) {
 	__asm(" dsb");
 
 	// Disable the system interrupt in the corresponding MIR_CLEAR register
@@ -57,7 +57,7 @@ void IntHandlerEnable(uint32_t intNum) {
 			(0x01 << (intNum & REG_BIT_MASK)));
 }
 
-void IntHandlerDisable(uint32_t intNum) {
+void IntHandlerDisable(volatile uint32_t intNum) {
 	__asm(" dsb");
 
 	// Enable the system interrupt in the corresponding MIR_SET register
@@ -65,12 +65,12 @@ void IntHandlerDisable(uint32_t intNum) {
 			(0x01 << (intNum & REG_BIT_MASK)));
 }
 
-void IntRegister(uint32_t intNum, intHandler handler) {
+void IntRegister(volatile uint32_t intNum, intHandler handler) {
 	// Assign ISR
 	intHandlers[intNum] = handler;
 }
 
-void IntUnRegister(uint32_t intNum) {
+void IntUnRegister(volatile uint32_t intNum) {
 	// Assign default ISR
 	intHandlers[intNum] = IntDefaultHandler;
 }
