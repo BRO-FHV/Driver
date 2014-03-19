@@ -24,6 +24,21 @@
 #define DMX_CHANNEL_11 		11
 #define DMX_CHANNEL_12 		12
 
+/*  Rotation for accepts percentage values */
+#define DMX_ROTATION(x) 							((int)(255.0/100*x))
+
+/*  Inclination for Channel */
+#define DMX_INCLINATION(x) 							((int)(255.0/100*x))
+
+/*  Fine tuning rotation for Channel 3  */
+#define DMX_MINOR_ROTATION(x) 						((int)(255.0/100*x))
+
+/*  Fine tuning inclination for Channel 4  */
+#define DMX_MINOR_INCLINATION(x)					((int)(255.0/100*x))
+
+/*  speed of movments for Channel 5 */
+#define DMX_MOVEMENT_SPEED(x) 						((int)(255.0/100*x))
+
 /* Colors for Channel 6*/
 typedef enum dmx_colors {
 	DMX_COLORS_WHITE = 2,
@@ -91,114 +106,58 @@ typedef enum dmx_colors {
 } DMX_COLORS;
 
 /* Transitions for Channel 6*/
-typedef enum dmx_transitions {
-	 DMX_TRANSITION_WHITE_YELLOW = 50,
-	 DMX_TRANSITION_YELLOW_PINK = 60,
-	 DMX_TRANSITION_PINK_GREEN = 69,
-	 DMX_TRANSITION_GREEN_PEACHBLOW = 79,
-	 DMX_TRANSITION_PEACHBLOW_LIGHT_BLUE = 88,
-	 DMX_TRANSITION_LIGHT_BLUE_YELLOW_GREEN = 97,
-	 DMX_TRANSITION_YELLOW_GREEN_RED = 106,
-	 DMX_TRANSITION_RED_DARK_BLUE = 115,
-	 DMX_TRANSITION_DARK_BLUE_WHITE = 123
-} DMX_TRANSITIONS;
+#define DMX_TRANSITION_WHITE_YELLOW(x) 				((int)(45+(9.0/100*x)),
+#define DMX_TRANSITION_YELLOW_PINK(x) 				((int)(55+(9.0/100*x)),
+#define DMX_TRANSITION_PINK_GREEN(x) 				((int)(65+(9.0/100*x)),
+#define DMX_TRANSITION_GREEN_PEACHBLOW(x) 			((int)(74+(9.0/100*x)),
+#define DMX_TRANSITION_PEACHBLOW_LIGHT_BLUE(x) 		((int)(84+(9.0/100*x)),
+#define DMX_TRANSITION_LIGHT_BLUE_YELLOW_GREEN(x) 	((int)(93+(9.0/100*x)),
+#define DMX_TRANSITION_YELLOW_GREEN_RED(x) 			((int)(102+(9.0/100*x)),
+#define DMX_TRANSITION_RED_DARK_BLUE(x) 			((int)(111+(9.0/100*x)),
+#define DMX_TRANSITION_DARK_BLUE_WHITE(x) 			((int)(120+(9.0/100*x))
 
 /*  Rainboweffect for Channel 6*/
-typedef enum dmx_rainbow {
-	DMX_RAINBOW_CLOCKWISE = 159,
-	DMX_RAINBOW_COUNTER_CLOCKWISE = 223
-} DMX_RAINBOW;
+#define DMX_RAINBOW_CLOCKWISE(x) 					((int)(128+(63.0/100*x))
+#define	DMX_RAINBOW_COUNTER_CLOCKWISE(x) 			((int)(192+(63.0/100*x))
 
-typedef enum dmx_shutter {
-	DMX_SHUTTER_CLOSED = 1,
-	DMX_SHUTTER_CLOSED_0 = 0,
-	DMX_SHUTTER_CLOSED_1 = 1,
-	DMX_SHUTTER_CLOSED_2 = 2,
-	DMX_SHUTTER_CLOSED_3 = 3,
+/*  Shutter for Channel 7*/
+#define DMX_SHUTTER_CLOSED 							((int)((3.0/100*x))
+#define DMX_SHUTTER_OPEN							((int)(4+(3.0/100*x))
+#define DMX_SHUTTER_FLASH(x) 						((int)(8+(207.0/100*x))
 
-	DMX_SHUTTER_OPEN = 5,
-	DMX_SHUTTER_OPEN_1 = 4,
-	DMX_SHUTTER_OPEN_2 = 5,
-	DMX_SHUTTER_OPEN_3 = 6,
-	DMX_SHUTTER_OPEN_4 = 7,
+/*  Dimmer for Channel 8  */
+#define DMX_DIMMER(x) ((int)(255.0/100*x))
 
-	DMX_SHUTTER_FLASH = 125,
-	DMX_SHUTTER_FLASH_1 = 8,
-	DMX_SHUTTER_FLASH_2 = 20,
-	DMX_SHUTTER_FLASH_3 = 50,
-	DMX_SHUTTER_FLASH_4 = 100,
-	DMX_SHUTTER_FLASH_5 = 150,
-	DMX_SHUTTER_FLASH_6 = 200,
-	DMX_SHUTTER_FLASH_7 = 215
-} DMX_SHUTTER;
+/* Gobo cycle for Channel 9 */
+#define DMX_GOBO_OPEN								((int)((3.0/100*x))
+
+#define DMX_GOBO_2(x)								((int)(8+(7.0/100*x))
+#define DMX_GOBO_3(x)								((int)(16+(7.0/100*x))
+#define DMX_GOBO_4(x)								((int)(24+(7.0/100*x))
+#define DMX_GOBO_5(x) 								((int)(32+(7.0/100*x))
+#define DMX_GOBO_6(x) 								((int)(40+(7.0/100*x))
+#define DMX_GOBO_7(x) 								((int)(48+(7.0/100*x))
+#define DMX_GOBO_8(x) 								((int)(56+(7.0/100*x))
+
+#define DMX_GOBO_8_SHAKE(x)							((int)(64+(7.0/100*x))
+#define DMX_GOBO_7_SHAKE(x)							((int)(72+(7.0/100*x))
+#define DMX_GOBO_6_SHAKE(x)							((int)(80+(7.0/100*x))
+#define DMX_GOBO_5_SHAKE(x)							((int)(88+(7.0/100*x))
+#define DMX_GOBO_4_SHAKE(x)							((int)(96+(7.0/100*x))
+#define DMX_GOBO_3_SHAKE(x)							((int)(104+(7.0/100*x))
+#define DMX_GOBO_2_SHAKE(x)							((int)(112+(7.0/100*x))
+
+#define DMX_GOBO_RAINBOW_CLOCKWISE(x)				((int)(128+(7.0/100*x))
+#define DMX_GOBO_RAINBOW_COUNTER_CLOCKWISE(x)		((int)(192+(7.0/100*x))
+
+
+/* Gobo rotation for Channel 10 */
+#define	DMX_GOBO_ROTATION_POSITION					((int)(63.0/100*x)
+#define	DMX_GOBO_ROTATION_CLOCKWISE					((int)(64+(83.0/100*x))
+#define	DMX_GOBO_ROTATION_COUNTER_CLOCKWISE			((int)(148+(83.0/100*x))
+#define	DMX_GOBO_ROTATION_JOJO						((int)(232+(23.0/100*x))
+
+
+/* Channel 11 and 12 special functions */
 
 #endif /* DR_DMX_H_ */
-
-/*
- 7           6       0...255     Shutter
- 0...3       Blackout
- 4...7       Open
- 8...215     Strobe effect, increasing speed
- 216...255   Open
- 8           7       0...255     Dimmer (0 to 100%)
- 9           8       0...255     Gobo wheel
- 0...7       Open
- 8...15      Gobo 2
- 16...23     Gobo 3
- 24...31     Gobo 4
- 32...39     Gobo 5
- 40...47     Gobo 6
- 48...55     Gobo 7
- 56...63     Gobo 8
- 64...71     Gobo 8 shake, increasing speed
- 72...79     Gobo 7 shake, increasing speed
- 80...87     Gobo 6 shake, increasing speed
- 88...95     Gobo 5 shake, increasing speed
- 96...103    Gobo 4 shake, increasing speed
- 104...111   Gobo 3 shake, increasing speed
- 112...119   Gobo 2 shake, increasing speed
- 120...127   Open
- 128...191   Rainbow effect clockwise, increasing speed
- 192...255   Rainbow effect counter-clockwise, increasing speed
- 10          9       0...255     Gobo rotation
- 0...63      Fixed position from 0° to 360°
- 64...147    Rotation clockwise, increasing speed
- 148...231   Rotation counter-clockwise, increasing speed
- 232...255   Yo-yo effect (bouncing gobo) with alternating rotation direction, increasing length of rotation intervals
- 11          10      0...255     Special functions
- 0...7       Not in use
- 8...15      Blackout during pan or tilt movement
- 16...23     No blackout during pan or tilt movement
- 24...31     Blackout during colour wheel movement
- 32...39     No blackout during colour wheel movement
- 40...47     Blackout during gobo wheel movement
- 48...55     No blackout during gobo wheel movement
- 56...87     Not in use
- 88...95     Blackout during movement
- 96...103    Pan and tilt reset
- 104...111   Not in use
- 112...119   Colour wheel reset
- 120...127   Gobo wheel reset
- 128...135   Gobo rotation reset
- 136...151   Not in use
- 152...159   All channel reset
- 160...255   Not in use
- 12          11      0...255     Built-in programmes
- 0...7       Not in use
- 8...23      Programme 1
- 24...39     Programme 2
- 40...55     Programme 3
- 56...71     Programme 4
- 72...87     Programme 5
- 88...103    Programme 6
- 104...119   Programme 7
- 120...135   Programme 8
- 136...151   Sound-control 1
- 152...167   Sound-control 2
- 168...183   Sound-control 3
- 184...199   Sound-control 4
- 200...215   Sound-control 5
- 216...231   Sound-control 6
- 232...247   Sound-control 7
- 248...255   Sound-control 8
- */
