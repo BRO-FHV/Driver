@@ -149,10 +149,11 @@ void TimerConfigureCE(uint32_t baseAdr, uint32_t tclr, uint8_t enable) {
 }
 
 void TimerConfigureAR(uint32_t baseAdr, uint32_t tclr, uint8_t enable) {
-	if(1 == enableAutoReload) {
+	if(1 == enable) {
 		reg32wor(baseAdr, TIMER_TCLR, TCLR_AR);
 	} else {
 		reg32wxor(baseAdr, TIMER_TCLR, TCLR_AR);
+	}
 }
 
 void TimerBasicConfiguration(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t tisr,  uint32_t ttgr, uint32_t matchValue, uint32_t loadValue) {
