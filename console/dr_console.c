@@ -1,5 +1,5 @@
 /*
- * Driver: debug.c
+ * Driver: dr_console.c
  * Part of BRO Project, 2014 <<https://github.com/BRO-FHV>>
  *
  * Created on: Mar 14, 2014
@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <hw_interrupt.h>
-#include "dr_debug.h"
+#include "dr_console.h"
 #include "../interrupt/dr_interrupt.h"
 #include "../uart/dr_uart.h"
 #include "../watch/dr_watch.h"

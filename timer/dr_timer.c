@@ -66,6 +66,8 @@ int TimerDisable(Timer timer) {
 		reg32w(baseAdr, TIMER_TCLR, TCLR_ST);
 	}
 
+	//TODO disable interrupts
+
 	timers[timer] = 0;
 
 	return 0;
@@ -143,12 +145,17 @@ int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,vo
 	if(1 == timer) {
 		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER1_TWER);
 		SetIrqMode(baseAdr, irqMode, TIMER1_TIER);
+
+		reg32w(DMTIMER2, TIMER1_TISR, 0x03);
 	} else {
 		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER_IRQWAKEEN);
 		SetIrqMode(baseAdr, irqMode, TIMER_IRQENABLE_SET);
+
+		reg32w(DMTIMER2, TIMER_IRQSTATUS, 0x03);
 	}
 	IntHandlerEnable(GetTimerInterruptCode(timer));
 	IntRegister(GetTimerInterruptCode(timer),routine);
+
 	return 0;
 }
 
@@ -162,9 +169,9 @@ void TimerConfigureCE(volatile uint32_t baseAdr, volatile uint32_t tclr,volatile
 
 void TimerConfigureAR(volatile uint32_t baseAdr,volatile uint32_t tclr,volatile uint8_t enable) {
 	if(1 == enable) {
-		reg32wor(baseAdr, TIMER_TCLR, TCLR_AR);
+		reg32wor(baseAdr, tclr, TCLR_AR);
 	} else {
-		reg32wxor(baseAdr, TIMER_TCLR, TCLR_AR);
+		reg32wxor(baseAdr, tclr, TCLR_AR);
 	}
 }
 
