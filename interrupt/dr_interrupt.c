@@ -14,7 +14,7 @@
 #include <hw_cpu.h>
 #include "dr_interrupt.h"
 
-intHandler intHandlers[NUM_INTERRUPTS];
+intHandler intIrqHandlers[NUM_INTERRUPTS];
 
 static void IntDefaultHandler(void);
 
@@ -34,7 +34,7 @@ void IntControllerInit(void) {
 
 	// Register the default handler for all interrupts
 	for (intNum = 0; intNum < NUM_INTERRUPTS; intNum++) {
-		intHandlers[intNum] = IntDefaultHandler;
+		intIrqHandlers[intNum] = IntDefaultHandler;
 	}
 }
 
@@ -67,12 +67,12 @@ void IntHandlerDisable(volatile uint32_t intNum) {
 
 void IntRegister(volatile uint32_t intNum, intHandler handler) {
 	// Assign ISR
-	intHandlers[intNum] = handler;
+	intIrqHandlers[intNum] = handler;
 }
 
 void IntUnRegister(volatile uint32_t intNum) {
 	// Assign default ISR
-	intHandlers[intNum] = IntDefaultHandler;
+	intIrqHandlers[intNum] = IntDefaultHandler;
 }
 
 void IntIRQHandler() {
@@ -80,7 +80,7 @@ void IntIRQHandler() {
 	uint32_t intNum = IntActiveIrqNumGet();
 
 	// call assigned interrupt handler
-	intHandlers[intNum]();
+	intIrqHandlers[intNum]();
 
 	// reset interrupt pending bit
 	reg32m(SOC_AINTC_REGS, INTC_CONTROL, INTC_CONTROL_NEWIRQAGR);
