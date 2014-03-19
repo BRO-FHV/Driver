@@ -19,7 +19,7 @@
  *
  * \return none
  */
-void DebugEnable(uint32_t baseAddr);
+void ConsoleEnable(uint32_t baseAddr);
 
 /**
  * \brief Sends a log message
@@ -29,6 +29,6 @@ void DebugEnable(uint32_t baseAddr);
  *
  * \return none
  */
-void DebugLog(char sender[], char * message);
+void ConsoleLog(char sender[], char * message);
 
 #endif /* DEBUG_H_ */

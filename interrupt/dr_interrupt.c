@@ -76,8 +76,8 @@ void IntUnRegister(volatile uint32_t intNum) {
 }
 
 void IntIRQHandler() {
+	// active irq number
 	uint32_t intNum = IntActiveIrqNumGet();
-	printf("interrupt %d\n", intNum);
 
 	// call assigned interrupt handler
 	intHandlers[intNum]();

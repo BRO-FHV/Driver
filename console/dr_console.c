@@ -38,7 +38,7 @@ uint32_t uartBaseAddr;
 /**
  * \brief Enables Debug Console
  */
-void DebugEnable(uint32_t baseAddr) {
+void ConsoleEnable(uint32_t baseAddr) {
 	// save base address of used module
 	uartBaseAddr = baseAddr;
 	// enable uart module
@@ -51,20 +51,20 @@ void DebugEnable(uint32_t baseAddr) {
 
 	// enable all uart interrupts
 	UartIntEnable(uartBaseAddr,
-			(UART_INT_LINE_STAT | UART_INT_THR | UART_INT_RHR_CTI));
+			(UART_INT_LINE_STAT | UART_INT_RHR_CTI));
 }
 
 /**
  * \brief Send Log Message
  */
-void DebugLog(char sender[], char message[]) {
+void ConsoleLog(char sender[], char message[]) {
 	char* logMessage = PrepareMessage(logType, sender, message);
 
-	UartWrite(uartBaseAddr, logMessage, strlen(logMessage) - 1);
+	UartWrite(uartBaseAddr, logMessage, strlen(logMessage));
 }
 
 /**
- * \brief prepare insternal message
+ * \brief prepare internal message
  */
 static char* PrepareMessage(const char* const type, char sender[],
 		char message[]) {

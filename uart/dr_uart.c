@@ -257,7 +257,7 @@ static uint32_t UartWriteChunk(uint32_t baseAddr) {
 
 	if (txEmptyFlag == TRUE) {
 		// TODO get back!
-		wChunk_t* chunk = (wChunk_t*) LinkedListGetFront(chunkList);
+		wChunk_t* chunk = (wChunk_t*) LinkedListGetBack(chunkList);
 		if (chunk != NULL ) {
 			char* pBuffer = chunk->message;
 
@@ -285,7 +285,6 @@ void UartInterrupt(void) {
 
 	switch (intId) {
 	case UART_INTID_TX_THRES_REACH:
-		printf("UART_INTID_TX_THRES_REACH\n");
 		// enable chunk
 		txEmptyFlag = TRUE;
 
