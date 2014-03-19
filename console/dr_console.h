@@ -1,5 +1,5 @@
 /*
- * Driver: debug.h
+ * Driver: dr_console.h
  * Part of BRO Project, 2014 <<https://github.com/BRO-FHV>>
  *
  * Created on: Mar 14, 2014
