@@ -150,14 +150,25 @@ typedef enum dmx_colors {
 #define DMX_GOBO_RAINBOW_CLOCKWISE(x)				((int)(128+(7.0/100*x))
 #define DMX_GOBO_RAINBOW_COUNTER_CLOCKWISE(x)		((int)(192+(7.0/100*x))
 
-
 /* Gobo rotation for Channel 10 */
 #define	DMX_GOBO_ROTATION_POSITION					((int)(63.0/100*x)
 #define	DMX_GOBO_ROTATION_CLOCKWISE					((int)(64+(83.0/100*x))
 #define	DMX_GOBO_ROTATION_COUNTER_CLOCKWISE			((int)(148+(83.0/100*x))
 #define	DMX_GOBO_ROTATION_JOJO						((int)(232+(23.0/100*x))
 
+/* special functions Channel 11*/
+#define DMX_RESET_COLOR_CYLCE						((int)(96+(7.0/100*x))
+#define DMX_RESET_POSITION							((int)(112+(7.0/100*x))
+#define DMX_RESET_GOBO								((int)(120+(7.0/100*x))
+#define DMX_RESET_GOBO_MOVEMENT						((int)(128+(7.0/100*x))
+#define DMX_RESET_CHANNELS							((int)(152+(7.0/100*x))
 
-/* Channel 11 and 12 special functions */
+/* Programms for Channel 12 */
+#define	DMX_PROGRAMM_1								((int)(8+(15.0/100*x))
+#define	DMX_PROGRAMM_2								((int)(24+(15.0/100*x))
+#define	DMX_PROGRAMM_3								((int)(40+(15.0/100*x))
+#define	DMX_PROGRAMM_4								((int)(56+(15.0/100*x))
+#define	DMX_PROGRAMM_5								((int)(72+(15.0/100*x))
+#define	DMX_PROGRAMM_6								((int)(88+(15.0/100*x))
 
 #endif /* DR_DMX_H_ */
