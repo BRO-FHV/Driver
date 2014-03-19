@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <hw_timer.h>
-#include "../interrupt/dr_interrupt.h"
 #include <basic.h>
 #include "dr_timer.h"
 
@@ -25,7 +24,6 @@ void ResetTimer(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t twer, 
 void TimerBasicConfigurationCore(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t tisr,  uint32_t ttgr, uint32_t matchValue, uint32_t loadValue);
 void TimerConfigureCE(uint32_t baseAdr, uint32_t tclr, uint8_t enable);
 void TimerConfigureAR(uint32_t baseAdr, uint32_t tclr, uint8_t enable);
-uint32_t GetTimerInterruptCode(Timer timer);
 
 int TimerEnable(Timer timer) {
 	if(0 != timers[timer]) {
@@ -92,7 +90,7 @@ int TimerReset(Timer timer) {
 
 // TODO: change compareModeOn,  autoReloadOn,... to boolean..
 // TODO: prescaler, timer source
-int TimerBasicConfiguration(volatile Timer timer,volatile uint8_t enableCompareMode,volatile uint8_t enableAutoReload,volatile uint32_t matchValue,volatile uint32_t loadValue,volatile uint16_t clockSource,volatile uint8_t pre,volatile uint8_t ptv) {
+int TimerBasicConfiguration(Timer timer, uint8_t enableCompareMode, uint8_t enableAutoReload, uint32_t matchValue, uint32_t loadValue, uint16_t clockSource, uint8_t pre, uint8_t ptv) {
 	if(0 < timers[timer]) {
 		return -1;
 	}
@@ -131,7 +129,7 @@ int TimerBasicConfiguration(volatile Timer timer,volatile uint8_t enableCompareM
 }
 
 //TODO register interrupt routine
-int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,volatile IrqWakeen irqwakeen,volatile InterruptRoutine routine) {
+int TimerInterruptConfiguration(Timer timer, IrqMode irqMode, IrqWakeen irqwakeen, InterruptRoutine routine) {
 	if(0 < timers[timer] || NULL == routine) {
 		return -1;
 	}
@@ -145,21 +143,20 @@ int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,vo
 	if(1 == timer) {
 		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER1_TWER);
 		SetIrqMode(baseAdr, irqMode, TIMER1_TIER);
-
-		reg32w(DMTIMER2, TIMER1_TISR, 0x03);
+		//TODO set this twice... see line 181 - remove one
+		reg32w(baseAdr, TIMER1_TISR, 0x03);
 	} else {
 		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER_IRQWAKEEN);
 		SetIrqMode(baseAdr, irqMode, TIMER_IRQENABLE_SET);
-
-		reg32w(DMTIMER2, TIMER_IRQSTATUS, 0x03);
+		//TODO set this twice... see line 181 - remove one
+		reg32w(baseAdr, TIMER_IRQSTATUS, 0x03);
 	}
-	IntHandlerEnable(GetTimerInterruptCode(timer));
-	IntRegister(GetTimerInterruptCode(timer),routine);
+
 
 	return 0;
 }
 
-void TimerConfigureCE(volatile uint32_t baseAdr, volatile uint32_t tclr,volatile uint8_t enable) {
+void TimerConfigureCE(uint32_t baseAdr, uint32_t tclr, uint8_t enable) {
 	if(1 == enable) {
 		reg32w(baseAdr, tclr, TCLR_CE);
 	} else {
@@ -167,7 +164,7 @@ void TimerConfigureCE(volatile uint32_t baseAdr, volatile uint32_t tclr,volatile
 	}
 }
 
-void TimerConfigureAR(volatile uint32_t baseAdr,volatile uint32_t tclr,volatile uint8_t enable) {
+void TimerConfigureAR(uint32_t baseAdr, uint32_t tclr, uint8_t enable) {
 	if(1 == enable) {
 		reg32wor(baseAdr, tclr, TCLR_AR);
 	} else {
@@ -175,19 +172,20 @@ void TimerConfigureAR(volatile uint32_t baseAdr,volatile uint32_t tclr,volatile 
 	}
 }
 
-void TimerBasicConfigurationCore(volatile uint32_t baseAdr, volatile uint32_t tmar,volatile uint32_t tldr, volatile uint32_t tisr, volatile uint32_t ttgr,volatile uint32_t matchValue,volatile uint32_t loadValue) {
+void TimerBasicConfigurationCore(uint32_t baseAdr, uint32_t tmar, uint32_t tldr,  uint32_t tisr,  uint32_t ttgr, uint32_t matchValue, uint32_t loadValue) {
 	//defines the match value (e.g. interrupt is raised, if this value is reached)
 	reg32w(baseAdr, tmar, matchValue);
 	//defines where the timer should start to count (e.g. after a auto reload)
 	reg32w(baseAdr, tldr, loadValue);
 	//use default
+	//TODO set this twice... see line 147/152 - remove one
 	reg32w(baseAdr, tisr, 0x03);
 	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
 	//Reload will be done regardless of the AR field value of TCLR register.
 	reg32w(baseAdr, ttgr, RESET_VALUE);
 }
 
-void SetIrqWakeenMode(volatile uint32_t baseAdr,volatile IrqWakeen irqwakeen,volatile uint32_t irqWakeenRegister) {
+void SetIrqWakeenMode(uint32_t baseAdr, IrqWakeen irqwakeen, uint32_t irqWakeenRegister) {
 	//Wakeup-enabled events taking place when module is idle will generate an asynchronous wakeup
 	switch(irqwakeen) {
 	case IrqWakeen_MAT_WUP_ENA:
@@ -239,29 +237,6 @@ uint32_t GetTimerBaseAdr(Timer timer) {
 		return TIMER_2;
 	case Timer_TIMER3:
 		return TIMER_3;
-	case Timer_TIMER4:
-		return TIMER_4;
-	case Timer_TIMER5:
-		return TIMER_5;
-	case Timer_TIMER6:
-		return TIMER_6;
-	case Timer_TIMER7:
-		return TIMER_7;
-	default:
-		return UINT32_MAX;
-	}
-}
-
-uint32_t GetTimerInterruptCode(Timer timer) {
-	switch(timer) {
-	case Timer_TIMER0:
-		return SYS_INT_TINT0;
-	case Timer_TIMER1MS:
-		return SYS_INT_TINT1_1MS;
-	case Timer_TIMER2:
-		return SYS_INT_TINT2;
-	case Timer_TIMER3:
-		return SYS_INT_TINT3;
 	case Timer_TIMER4:
 		return TIMER_4;
 	case Timer_TIMER5:
