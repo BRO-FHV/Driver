@@ -65,4 +65,6 @@ int TimerBasicConfiguration(volatile Timer timer,volatile uint8_t enableCompareM
  */
 int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,volatile IrqWakeen irqwakeen,volatile InterruptRoutine routine);
 
+//TODO impl
+int TimerInterruptFlagClear(Timer timer);
 #endif /* DR_TIMER_H_ */

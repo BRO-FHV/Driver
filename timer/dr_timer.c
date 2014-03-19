@@ -11,6 +11,7 @@
 #include <hw_timer.h>
 #include "../interrupt/dr_interrupt.h"
 #include <basic.h>
+#include <hw_types.h>
 #include "dr_timer.h"
 
 #define NUMBER_OF_TIMERS	8
@@ -38,10 +39,17 @@ int TimerEnable(Timer timer) {
 		return -1; //failure
 	}
 
+	uint32_t tcrr = 1 == timer ? TIMER1_TCRR : TIMER_TCRR;
+
+	//reset counter register
+	reg32wor(baseAdr, tcrr, RESET_VALUE);
+
 	if(1 == timer) {
-		reg32wor(baseAdr, TIMER1_TCLR, 0x01);
+		reg32wor(baseAdr, TIMER1_TCLR, TCLR_ST);
+		wait(FALSE == reg32r(baseAdr,TIMER1_TCLR) & TCLR_ST);
 	} else {
-		reg32wor(baseAdr, TIMER_TCLR, 0x01);
+		reg32wor(baseAdr, TIMER_TCLR, TCLR_ST);
+		wait(FALSE == reg32r(baseAdr,TIMER_TCLR) & TCLR_ST);
 	}
 
 	timers[timer] = 1;
@@ -50,10 +58,6 @@ int TimerEnable(Timer timer) {
 }
 
 int TimerDisable(Timer timer) {
-	if(1 != timers[timer]) {
-		return -1; //not enabled
-	}
-
 	uint32_t baseAdr = GetTimerBaseAdr(timer);
 
 	if(UINT32_MAX == baseAdr) {
@@ -61,9 +65,11 @@ int TimerDisable(Timer timer) {
 	}
 
 	if(1 == timer) {
-		reg32wor(baseAdr, TIMER1_TCLR, TCLR_ST);
+		reg32an(baseAdr, TIMER1_TCLR, TCLR_ST);
+		wait(reg32r(baseAdr,TIMER_TCLR) & TCLR_ST);
 	} else {
-		reg32wor(baseAdr, TIMER_TCLR, TCLR_ST);
+		reg32an(baseAdr, TIMER_TCLR, TCLR_ST);
+		wait(reg32r(baseAdr,TIMER_TCLR) & TCLR_ST);
 	}
 
 	//TODO disable interrupts
@@ -92,6 +98,7 @@ int TimerReset(Timer timer) {
 
 // TODO: change compareModeOn,  autoReloadOn,... to boolean..
 // TODO: prescaler, timer source
+//TODO feature wish: no prescaler - pass e.g. 500 ms, 1000 ms,...
 int TimerBasicConfiguration(volatile Timer timer,volatile uint8_t enableCompareMode,volatile uint8_t enableAutoReload,volatile uint32_t matchValue,volatile uint32_t loadValue,volatile uint16_t clockSource,volatile uint8_t pre,volatile uint8_t ptv) {
 	if(0 < timers[timer]) {
 		return -1;
@@ -108,7 +115,9 @@ int TimerBasicConfiguration(volatile Timer timer,volatile uint8_t enableCompareM
 		return -1;
 	}
 
+	TimerDisable(timer);
 	TimerReset(timer);
+
 	volatile uint8_t eins = 1;
 	if(eins == timer) {
 		//timer 1 ms
@@ -153,6 +162,7 @@ int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,vo
 
 		reg32wor(baseAdr, TIMER_IRQSTATUS, 0x03);
 	}
+
 	IntHandlerEnable(GetTimerInterruptCode(timer));
 	IntRegister(GetTimerInterruptCode(timer),routine);
 
@@ -163,16 +173,20 @@ void TimerConfigureCE(volatile uint32_t baseAdr, volatile uint32_t tclr,volatile
 {
 	if(1 == enable) {
 		reg32wor(baseAdr, tclr, TCLR_CE);
+		wait(FALSE == reg32r(baseAdr, tclr) & TCLR_CE);
 	} else {
-		reg32wxor(baseAdr, tclr, TCLR_CE);
+		reg32an(baseAdr, tclr, TCLR_CE);
+		wait(reg32r(baseAdr, tclr) & TCLR_CE);
 	}
 }
 
 void TimerConfigureAR(volatile uint32_t baseAdr,volatile uint32_t tclr,volatile uint8_t enable) {
 	if(1 == enable) {
 		reg32wor(baseAdr, tclr, TCLR_AR);
+		wait(FALSE == reg32r(baseAdr, tclr) & TCLR_AR);
 	} else {
-		reg32wxor(baseAdr, tclr, TCLR_AR);
+		reg32an(baseAdr, tclr, TCLR_AR);
+		wait(reg32r(baseAdr, tclr) & TCLR_AR);
 	}
 }
 
@@ -186,6 +200,12 @@ void TimerBasicConfigurationCore(volatile uint32_t baseAdr, volatile uint32_t tm
 	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
 	//Reload will be done regardless of the AR field value of TCLR register.
 	reg32wor(baseAdr, ttgr, RESET_VALUE);
+}
+
+//TODO Method that is passed as interrupt method
+//in this method clear the M-Bit of the Interrupt and finally call function method passed via timer interrupt configuration
+int TimerInterruptFlagClear(Timer timer) {
+
 }
 
 void SetIrqWakeenMode(volatile uint32_t baseAdr,volatile IrqWakeen irqwakeen,volatile uint32_t irqWakeenRegister) {
