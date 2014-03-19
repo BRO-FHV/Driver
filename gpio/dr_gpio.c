@@ -10,7 +10,7 @@
 #include <hw_cm_per.h>
 #include <soc_AM335x.h>
 #include "dr_gpio.h"
-#include <hw_gpio.h>
+#include <gpio/hw_gpio.h>
 #include <basic.h>
 #include <inttypes.h>
 

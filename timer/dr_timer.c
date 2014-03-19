@@ -64,6 +64,8 @@ int TimerDisable(Timer timer) {
 		reg32w(baseAdr, TIMER_TCLR, TCLR_ST);
 	}
 
+	//TODO disable interrupts
+
 	timers[timer] = 0;
 
 	return 0;
