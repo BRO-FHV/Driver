@@ -14,6 +14,7 @@ typedef enum { Timer_TIMER0 = 0, Timer_TIMER1MS, Timer_TIMER2, Timer_TIMER3, Tim
 typedef enum { IrqMode_MATCH = 0, IrqMode_OVERFLOW, IrqMode_CAPTURE, IrqMode_ALL, IrqMode_NONE } IrqMode;
 typedef enum { IrqWakeen_MAT_WUP_ENA = 0, IrqWakeen_OVF_WUP_ENA, IrqWakeen_TCAR_WUP_ENA, IrqWakeen_ALL, IrqWakeen_NONE } IrqWakeen;
 
+
 typedef void (*InterruptRoutine)(void);
 
 /**

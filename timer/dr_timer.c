@@ -143,10 +143,15 @@ int TimerInterruptConfiguration(Timer timer, IrqMode irqMode, IrqWakeen irqwakee
 	if(1 == timer) {
 		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER1_TWER);
 		SetIrqMode(baseAdr, irqMode, TIMER1_TIER);
+
+		reg32w(DMTIMER2, TIMER1_TISR, 0x03);
 	} else {
 		SetIrqWakeenMode(baseAdr, irqwakeen, TIMER_IRQWAKEEN);
 		SetIrqMode(baseAdr, irqMode, TIMER_IRQENABLE_SET);
+
+		reg32w(DMTIMER2, TIMER_IRQSTATUS, 0x03);
 	}
+
 
 	return 0;
 }
@@ -161,9 +166,9 @@ void TimerConfigureCE(uint32_t baseAdr, uint32_t tclr, uint8_t enable) {
 
 void TimerConfigureAR(uint32_t baseAdr, uint32_t tclr, uint8_t enable) {
 	if(1 == enable) {
-		reg32wor(baseAdr, TIMER_TCLR, TCLR_AR);
+		reg32wor(baseAdr, tclr, TCLR_AR);
 	} else {
-		reg32wxor(baseAdr, TIMER_TCLR, TCLR_AR);
+		reg32wxor(baseAdr, tclr, TCLR_AR);
 	}
 }
 
