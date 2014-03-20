@@ -23,10 +23,13 @@ ADDR_SIR_IRQ		.word	SOC_AINTC_REGS + INTC_SIR_IRQ
 ADDR_CONTROL		.word	SOC_AINTC_REGS + INTC_CONTROL
 
 ;
-; ???
+; bit masks
 ;
 MASK_ACTIVE_IRQ		.set	INTC_SIR_IRQ_ACTIVEIRQ
-NEWIRQAGR			.set	INTC_CONTROL_NEWIRQAGR
+MASK_NEW_IRQ		.set	INTC_CONTROL_NEWIRQAGR
+MASK_SYS_MODE		.set	0x1F
+MASK_IRQ_MODE		.set	0x12
+MASK_I_BIT			.set	0x80
 
 ;
 ; define section of memory
@@ -43,12 +46,19 @@ NEWIRQAGR			.set	INTC_CONTROL_NEWIRQAGR
 ;
     .global IntIRQHandler
 	.ref intIrqHandlers
+	.ref intIrqResetHandlers
 
 ;
 ; definition of irq handlers
 ;
 _intIrqHandlers:
     .word intIrqHandlers
+
+;
+; definition of irq reset handlers
+;
+_intIrqResetHandlers:
+    .word intIrqResetHandlers
 
 ;
 ; IRQ handler function definition
@@ -70,10 +80,31 @@ _intIrqHandlers:
 ;			->	http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/BABDJCHA.html
 ;			->	http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/BABDJCHA.html
 ;
-;	+ AND	=	???
+;	+ AND	=	Bitwise AND logical operations
+;			->	http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/BABGIEBE.html
 ;
-;	+ MOV	=	instruction copies the value of operand2 into Rd (operand1)
+;
+;	+ MOV	=	Instruction copies the value of operand2 into Rd (operand1)
 ;			->	http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0204j/Cihcdbca.html
+;
+;	+ CMP	=	Compare operation
+;			->	http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHIDDID.html
+;
+;	+ STRNE	=	???
+;			->	???
+;
+;	+ DSB	=	Data Synchronization Barrier acts as a special kind of memory barrier. No instruction in program order after this instruction executes until this instruction completes.
+;			->	http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489c/CIHGHHIE.html
+;
+;	+ ORR	=	Bitwise OR logical operations
+;			->	http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/BABGIEBE.html
+;
+;	+ BICNE	=	???
+;			->	???
+;
+;	+ MOVEQ	=	Move if equal
+;
+;	+ LDMFD	=
 ;
 IntIRQHandler:
 	;
@@ -115,46 +146,66 @@ IntIRQHandler:
 	;
 	; enable IRQ generation
 	;
-	MOV      r0, #NEWIRQAGR				; load mask for new IRQ generation in r0
+	MOV      r0, #MASK_NEW_IRQ			; load mask for new IRQ generation in r0
 	LDR      r1, ADDR_CONTROL			; load address for interrupt control register in r1
 
-
-	; ---------------------------------------------------------------------------------------
-	CMP      r3, #0                   ; Check if non-maskable priority 0
-	STRNE    r0, [r1]                 ; if > 0 priority, acknowledge INTC
-	DSB                               ; Make sure acknowledgement is completed
+	;
+	; check priotity not equal zero
+	; ???
+	;
+	CMP      r3, #0						; check priotity is zero
+	STRNE    r0, [r1]					; if priority > 0 , acknowledge INTC
+	DSB									; wait for acknowledge
 
 	;
-	; Enable IRQ and switch to system mode. But IRQ shall be enabled
-	; only if priority level is > 0. Note that priority 0 is non maskable.
-	; Interrupt Service Routines will execute in System Mode.
+	; switch to system mode and
+	; enable other IRQ if priority allows it
 	;
-	MRS      r14, cpsr                ; Read cpsr
-	ORR      r14, r14, #MODE_SYS
-	BICNE    r14, r14, #I_BIT         ; Enable IRQ if priority > 0
-	MSR      cpsr_cxsf, r14
+	MRS      r14, cpsr					; read cpsr in r14
+	ORR      r14, r14, #MASK_SYS_MODE	; mask system mode
+	BICNE    r14, r14, #MASK_I_BIT		; enable IRQ if priority > 0
+	MSR      cpsr_cxsf, r14				; store cpsr back
+	DSB									; wait for acknowledge to ensure system mode
 
-	STMFD    r13!, {r14}              ; Save lr_usr
-	LDR      r0, _fnRAMVectors        ; Load the base of the vector table
-	ADD      r14, pc, #0              ; Save return address in LR
-	LDR      pc, [r0, r2, lsl #2]     ; Jump to the ISR
-
-	LDMFD    r13!, {r14}              ; Restore lr_usr
 	;
-	; Disable IRQ and change back to IRQ mode
+	; start interrupt handler
+	;	+ r2	= contains active IRQ number
+	;	+ r14	= link register
+	;	+ pc	= program counter
 	;
-	CPSID    i, #MODE_IRQ
+	STMFD    r13!, {r14}				; backup user link register
+	LDR      r0, _intIrqHandlers		; load base of interrupt handler (implemented in interrupt.c)
+	ADD      r14, pc, #0				; save return address in link register (return point)
+	LDR      pc, [r0, r2, lsl #2]		; jump to interrupt handler
 
-	LDR      r0, ADDR_THRESHOLD      ; Get the IRQ Threshold
-	LDR      r1, [r0, #0]
-	CMP      r1, #0                   ; If priority 0
-	MOVEQ    r2, #NEWIRQAGR           ; Enable new IRQ Generation
-	LDREQ    r1, ADDR_CONTROL
-	STREQ    r2, [r1]
-	LDMFD    r13!, {r1}
-	STR      r1, [r0, #0]             ; Restore the threshold value
-	VLDMIA   r13!, {d0-d7}            ; Restore D0-D7 Neon/VFP registers
-	LDMFD    r13!, {r1, r12}          ; Get fpscr and spsr
-	MSR      spsr_cxsf, r12           ; Restore spsr
-	VMSR     fpscr, r1                ; Restore fpscr
-	LDMFD    r13!, {r0-r3, r12, pc}^  ; Restore the context and return
+	;
+	; reset interrupt flags
+	;
+	LDR      r0, _intIrqResetHandlers	; load base of interrupt handler (implemented in interrupt.c)
+	ADD      r14, pc, #0				; save return address in link register (return point)
+	LDR      pc, [r0, r2, lsl #2]		; jump to interrupt handler
+
+	;
+	; restore user link register
+	;
+	LDMFD    r13!, {r14}				; Restore lr_usr
+
+	;
+	; disable IRQ and change back to IRQ mode
+	;
+	CPSID    i, #MASK_IRQ_MODE
+
+	;
+	; restore backuped values
+	;
+	LDR      r0, ADDR_THRESHOLD			; load IRQ threshold
+	LDR      r1, [r0, #0]				; load threshold register from RAM
+	CMP      r1, #0						; if priority 0
+	MOVEQ    r2, #MASK_NEW_IRQ			; enable new IRQ generation
+	LDREQ    r1, ADDR_CONTROL			; load interrupt control register
+	STREQ    r2, [r1, #0]				; store content of r2 in RAM address in r1 + offset 0
+	LDMFD    r13!, {r1}					; ???
+	STR      r1, [r0, #0]				; restore the threshold value
+	LDMFD    r13!, {r12}				; get spsr
+	MSR      spsr_cxsf, r12				; restore spsr
+	LDMFD    r13!, {r0-r3, r12, pc}^	; restore the context and return
