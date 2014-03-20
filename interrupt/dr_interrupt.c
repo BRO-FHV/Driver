@@ -15,8 +15,10 @@
 #include "dr_interrupt.h"
 
 intHandler intIrqHandlers[NUM_INTERRUPTS];
+intResetHandler intIrqResetHandlers[NUM_INTERRUPTS];
 
 static void IntDefaultHandler(void);
+static void IntDefaultResetHandler(void);
 
 void IntControllerInit(void) {
 	unsigned int intNum;
@@ -35,6 +37,7 @@ void IntControllerInit(void) {
 	// Register the default handler for all interrupts
 	for (intNum = 0; intNum < NUM_INTERRUPTS; intNum++) {
 		intIrqHandlers[intNum] = IntDefaultHandler;
+		intIrqResetHandlers[intNum] = IntDefaultHandler;
 	}
 }
 
@@ -70,9 +73,19 @@ void IntRegister(volatile uint32_t intNum, intHandler handler) {
 	intIrqHandlers[intNum] = handler;
 }
 
+void IntResetRegister(uint32_t intNum, intHandler handler) {
+	// Assign ISR reset handler
+	intIrqResetHandlers[intNum] = handler;
+}
+
 void IntUnRegister(volatile uint32_t intNum) {
 	// Assign default ISR
-	intIrqHandlers[intNum] = IntDefaultHandler;
+	intIrqResetHandlers[intNum] = IntDefaultHandler;
+}
+
+void IntUnResetRegister(uint32_t intNum) {
+	// Assign default ISR reset handler
+	intIrqHandlers[intNum] = IntDefaultResetHandler;
 }
 
 void IntIRQHandler() {
@@ -102,7 +115,15 @@ uint32_t IntActiveIrqNumGet(void) {
  *        without performing any operation
  */
 static void IntDefaultHandler(void) {
-// Go Back, nothing to be done
+	// Go Back, nothing to be done
+	;
+}
+
+/**
+ * \brief Default Interrupt Reset Handler.
+ */
+static void IntDefaultResetHandler(void) {
+	// Go Back, nothing to be done
 	;
 }
 
