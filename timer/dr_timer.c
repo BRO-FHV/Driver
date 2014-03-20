@@ -149,7 +149,7 @@ void DisableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, 
 
 	//disable interrupt routine
 	uint32_t irqCode = GetTimerInterruptCode(timer);
-	IntUnRegister(irqCode, routine);
+	IntUnRegister(irqCode);
 	IntHandlerDisable(irqCode);
 
 	//set to disabled
@@ -265,7 +265,7 @@ void ConfigurationCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr,	uint32_t
 	WaitForWrite(tsicr, twps, TWPS_W_PEND_TLDR, baseAddr)
 
 	//clear pending interrupts
-	reg32an(baseAdr, tisr, TISR_ALL_FLAGS);
+	reg32an(baseAddr, tisr, TISR_ALL_FLAGS);
 
 	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
 	//Reload will be done regardless of the AR field value of TCLR register.
@@ -376,7 +376,7 @@ void ClearTimer0IrqStatus() {
 }
 
 void ClearTimer1IrqStatus() {
-	ClearTimerCore(TIMER_1, TIMER1_TISR);
+	ClearTimerCore(TIMER_1MS, TIMER1_TISR);
 }
 
 void ClearTimer2IrqStatus() {
@@ -405,5 +405,5 @@ void ClearTimer7IrqStatus() {
 
 void ClearTimerCore(uint32_t baseAddr, uint32_t tisr) {
 	//clear all pending interrupt flags
-	reg32an(baseAdr, tisr, TISR_ALL_FLAGS);
+	reg32an(baseAddr, tisr, TISR_ALL_FLAGS);
 }
