@@ -4,7 +4,11 @@
  *
  * Created on: 16.03.2014
  * Description: 
- * TODO
+ * This is the driver header file. It offers all needed functions to
+ * configure a timer.
+ *
+ * This file also provides an enumeration called Timer. These enums can
+ * be used to choose the correct timer for the function calls.
  */
 
 #ifndef DR_TIMER_H_
