@@ -95,6 +95,9 @@ void IntIRQHandler() {
 	// call assigned interrupt handler
 	intIrqHandlers[intNum]();
 
+	// call assigned interrupt reset handler
+	intIrqResetHandlers[intNum]();
+
 	// reset interrupt pending bit
 	reg32m(SOC_AINTC_REGS, INTC_CONTROL, INTC_CONTROL_NEWIRQAGR);
 }
