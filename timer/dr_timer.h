@@ -11,10 +11,6 @@
 #define DR_TIMER_H_
 
 typedef enum { Timer_TIMER0 = 0, Timer_TIMER1MS, Timer_TIMER2, Timer_TIMER3, Timer_TIMER4, Timer_TIMER5, Timer_TIMER6, Timer_TIMER7 } Timer;
-typedef enum { IrqMode_MATCH = 0, IrqMode_OVERFLOW, IrqMode_CAPTURE, IrqMode_ALL, IrqMode_NONE } IrqMode;
-typedef enum { IrqWakeen_MAT_WUP_ENA = 0, IrqWakeen_OVF_WUP_ENA, IrqWakeen_TCAR_WUP_ENA, IrqWakeen_ALL, IrqWakeen_NONE } IrqWakeen;
-
-
 typedef void (*InterruptRoutine)(void);
 
 /**
@@ -24,7 +20,7 @@ typedef void (*InterruptRoutine)(void);
  *
  * \return 0 on success, -1 on failure
  */
-int TimerEnable(Timer timer);
+int32_t TimerEnable(Timer timer);
 
 /**
  * \brief disable a timer
@@ -33,7 +29,7 @@ int TimerEnable(Timer timer);
  *
  * \return 0 on success, -1 on failure
  */
-int TimerDisable(Timer timer);
+int32_t TimerDisable(Timer timer);
 
 /**
  * \brief reset a timer (counting state)
@@ -42,7 +38,7 @@ int TimerDisable(Timer timer);
  *
  * \return 0 on success, -1 on failure
  */
-int TimerReset(Timer timer);
+int32_t TimerReset(Timer timer);
 
 /**
  * \brief configure the compare mode and the auto reaload mode. Timermust be disabled
@@ -53,18 +49,15 @@ int TimerReset(Timer timer);
  *
  * \return 0 on success, -1 on failure
  */
-int TimerBasicConfiguration(volatile Timer timer,volatile uint8_t enableCompareMode,volatile uint8_t enableAutoReload,volatile uint32_t matchValue,volatile uint32_t loadValue,volatile uint16_t clockSource,volatile uint8_t pre,volatile uint8_t ptv);
+int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine routine) ;
 
 /**
- * \brief
+ * \brief clears the interrupt flag of the passed timer
  *
  * \param timer
- * \param interrupt routine
  *
  * \return 0 on success, -1 on failure
  */
-int TimerInterruptConfiguration(volatile Timer timer,volatile IrqMode irqMode,volatile IrqWakeen irqwakeen,volatile InterruptRoutine routine);
+int32_t TimerInterruptFlagClear(Timer timer);
 
-//TODO impl
-int TimerInterruptFlagClear(Timer timer);
 #endif /* DR_TIMER_H_ */
