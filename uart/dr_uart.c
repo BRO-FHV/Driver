@@ -252,13 +252,16 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 	return numTxBytes;
 }
 
+/**
+ * \brief write one chunk (max 56 bytes) to output fifo
+ */
 static uint32_t UartWriteChunk(uint32_t baseAddr) {
 	uint32_t lIndex = 0;
 
 	if (txEmptyFlag == TRUE) {
 		// TODO get back!
 		wChunk_t* chunk = (wChunk_t*) LinkedListGetBack(chunkList);
-		if (chunk != NULL ) {
+		if (chunk != NULL) {
 			char* pBuffer = chunk->message;
 
 			for (lIndex = 0; lIndex < chunk->size; lIndex++) {
@@ -276,6 +279,48 @@ static uint32_t UartWriteChunk(uint32_t baseAddr) {
 
 	return lIndex;
 }
+
+uint32_t lcrRegValue = 0;
+uint32_t retVal = 0;
+
+/**
+ * \brief reads on byte of of input fifo
+ */
+char UartCharGetNonBlocking(uint32_t baseAddr) {
+	// switching to Register Operational Mode of operation
+	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
+
+	// checking if the RX FIFO(or RHR) has atleast one byte of data
+	if (reg32r(baseAddr, UART_LSR) & UART_LSR_RX_FIFO_E) {
+		retVal = (char) reg32r(baseAddr, UART_RHR);
+	}
+
+	// restoring the value of LCR
+	reg32w(baseAddr, UART_LCR, lcrRegValue);
+
+	return retVal;
+}
+
+/**
+ * \brief returns TRUE if available chars exists
+ */
+tBoolean UartAvailable(unsigned int baseAddr) {
+
+	// Switching to Register Operational Mode of operation
+	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
+
+	// checking if the RHR(or RX FIFO) has atleast one byte to be read
+	if (reg32r(baseAddr, UART_LSR) & UART_LSR_RX_FIFO_E) {
+		retVal = TRUE;
+	}
+
+	// restoring the value of LCR
+	reg32w(baseAddr, UART_LCR, lcrRegValue);
+
+	return retVal;
+}
+
+char rxByte;
 
 /**
  * \brief handles uart interrupt
@@ -297,6 +342,9 @@ void UartInterrupt(void) {
 
 	case UART_INTID_RX_THRES_REACH:
 		printf("UART_INTID_RX_THRES_REACH\n");
+		rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
+
+		printf("char: %s\r\n", rxByte);
 		break;
 
 	case UART_INTID_RX_LINE_STAT_ERROR:
@@ -305,6 +353,10 @@ void UartInterrupt(void) {
 
 	case UART_INTID_CHAR_TIMEOUT:
 		printf("UART_INTID_CHAR_TIMEOUT\n");
+		while (TRUE == UartAvailable(SOC_UART_0_REGS)) {
+			rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
+			printf("char: %s\r\n", rxByte);
+		}
 		break;
 
 	default:
@@ -359,9 +411,7 @@ static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
 
 	// Programming the PARITY_EN, PARITY_TYPE1 and PARITY_TYPE2 fields in LCR
 	reg32m(baseAddr, UART_LCR,
-			(parityFlag
-					& (UART_LCR_PARITY_TYPE2 | UART_LCR_PARITY_TYPE1
-							| UART_LCR_PARITY_EN)));
+			(parityFlag & (UART_LCR_PARITY_TYPE2 | UART_LCR_PARITY_TYPE1 | UART_LCR_PARITY_EN)));
 
 }
 
@@ -519,8 +569,7 @@ static uint32_t UartFIFOConfigure(uint32_t baseAdd, uint32_t fifoConfig) {
 			// RX Trigger level will be a multiple of 4
 			// Programming the RX_FIFO_TRIG_DMA field of TLR register
 			reg32m(baseAdd, UART_TLR,
-					((rxTrig << UART_TLR_RX_FIFO_TRIG_DMA_SHIFT)
-							& UART_TLR_RX_FIFO_TRIG_DMA));
+					((rxTrig << UART_TLR_RX_FIFO_TRIG_DMA_SHIFT) & UART_TLR_RX_FIFO_TRIG_DMA));
 		}
 	} else {
 		// 'rxTrig' now has the 6-bit RX Trigger level value
@@ -561,8 +610,7 @@ static uint32_t UartFIFOConfigure(uint32_t baseAdd, uint32_t fifoConfig) {
 			// TX Trigger level will be a multiple of 4
 			// Programming the TX_FIFO_TRIG_DMA field of TLR register
 			reg32m(baseAdd, UART_TLR,
-					((txTrig << UART_TLR_TX_FIFO_TRIG_DMA_SHIFT)
-							& UART_TLR_TX_FIFO_TRIG_DMA));
+					((txTrig << UART_TLR_TX_FIFO_TRIG_DMA_SHIFT) & UART_TLR_TX_FIFO_TRIG_DMA));
 		}
 	} else {
 		// 'txTrig' now has the 6-bit TX Trigger level value
