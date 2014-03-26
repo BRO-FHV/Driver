@@ -6,6 +6,14 @@
  * Description: 
  * TODO
  */
+/** ============================================================================
+ *   \file  dr_gpio.c
+ *
+ *   \brief This file contains the methodes to configure GPIO and Read and Write to it
+ *
+ *  ============================================================================
+ */
+
 
 #include <hw_cm_per.h>
 #include <soc_AM335x.h>
@@ -14,12 +22,9 @@
 #include <basic.h>
 #include <inttypes.h>
 
-#define HWREG(x)	(*((volatile unsigned int *)(x)))
-
-
 
 /**
- * \brief  This API is used to enable the GPIO module. When the GPIO module
+ * \brief  Used to enable the GPIO module. When the GPIO module
  *         is enabled, the clocks to the module are not gated.
  *
  * \param  baseAdd    The memory address of the GPIO instance being used
@@ -36,6 +41,15 @@ void GPIOModuleEnable(unsigned int baseAdd)
     reg32an(baseAdd , GPIO_CTRL,GPIO_CTRL_DISABLEMODULE);
 }
 
+/**
+ * \brief  Used to Reset the GPIO Port
+ *
+ * \param  baseAdd    The memory address of the GPIO instance being used
+ *
+ * \return None
+ *
+ * \note   Should be done after Enable Modul
+ */
 void GPIOModuleReset(unsigned int baseAdd)
 {
     /*
@@ -48,6 +62,16 @@ void GPIOModuleReset(unsigned int baseAdd)
     while(!(reg32r(baseAdd , GPIO_SYSSTATUS) & GPIO_SYSSTATUS_RESETDONE));
 }
 
+/**
+ * \brief  Used to set the Direction of a Pin from a GPIO Modul
+ *
+ * \param  baseAdd    The memory address of the GPIO instance being used
+ * \param  pinNumber  Selected Pin from GPIO Modul
+ * \praam  pinDirection  Output=0 Input=1
+ *
+ * \return None
+ *
+ */
 void GPIODirModeSet(unsigned int baseAdd,
                     unsigned int pinNumber,
                     unsigned int pinDirection)
@@ -63,6 +87,16 @@ void GPIODirModeSet(unsigned int baseAdd,
     }
 }
 
+/**
+ * \brief  Used to write to a spezific Pin on a GPIO Port
+ *
+ * \param  baseAdd    The memory address of the GPIO instance being used
+ * \param  pinNumber  Selected Pin from GPIO Modul
+ * \praam  pinValue	  Set Pin to 1 or 0
+ *
+ * \return None
+ *
+ */
 void GPIOPinWrite(unsigned int baseAdd,
                   unsigned int pinNumber,
                   unsigned int pinValue)
@@ -77,13 +111,31 @@ void GPIOPinWrite(unsigned int baseAdd,
     }
 }
 
+/**
+ * \brief  Used to read from a pin
+ *
+ * \param  baseAdd    The memory address of the GPIO instance being used
+ * \param  pinNumber  Selected Pin from GPIO Modul
+ *
+ * \return Value of that pin
+ *
+ */
 unsigned int GPIOPinRead(unsigned int baseAdd,
                          unsigned int pinNumber)
 {
     return(reg32r(baseAdd, GPIO_DATAIN) & (1 << pinNumber));
 }
 
-
+/**
+ * \brief  Used to write multiple values to pins
+ *
+ * \param  baseAdd    The memory address of the GPIO instance being used
+ * \param  setMask	  Setting the specified output pins in GPIO_DATAOUT Register
+ * \param  clrMask	  Clearing the specified poutput pins in GPIO_DATAOUT Register
+ *
+ * \return Value of that pin
+ *
+ */
 void GPIOMultiplePinsWrite(unsigned int baseAdd,
                            unsigned int setMask,
                            unsigned int clrMask)
@@ -95,13 +147,27 @@ void GPIOMultiplePinsWrite(unsigned int baseAdd,
     reg32w(baseAdd , GPIO_CLEARDATAOUT, clrMask);
 }
 
-
+/**
+ * \brief  Used to write multiple values to pins
+ *
+ * \param  baseAdd    The memory address of the GPIO instance being used
+ * \param  readMask   Pins die gelesen werden sollen auf 1 setzen
+ *
+ * \return Value of that pin
+ *
+ */
 unsigned int GPIOMultiplePinsRead(unsigned int baseAdd,
                                   unsigned int readMask)
 {
     return(reg32r(baseAdd , GPIO_DATAIN) & readMask);
 }
 
+/**
+ * \brief  Set GPIO0 Module Clk
+ *
+ * \return Value of that pin
+ *
+ */
 void GPIO0ModuleClkConfig(void)
 {
     /* Writing to MODULEMODE field of CM_WKUP_GPIO0_CLKCTRL register. */
@@ -140,6 +206,12 @@ void GPIO0ModuleClkConfig(void)
            CM_WKUP_CLKSTCTRL_CLKACTIVITY_GPIO0_GDBCLK));
 }
 
+/**
+ * \brief  Set GPIO1 Module Clk
+ *
+ * \return Value of that pin
+ *
+ */
 void GPIO1ModuleClkConfig(void)
 {
     /* Configuring L3 Interface Clocks. */
@@ -346,7 +418,12 @@ void GPIO1ModuleClkConfig(void)
            CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_GPIO_1_GDBCLK)));
 }
 
-
+/**
+ * \brief  Set GPIO3 Module Clk
+ *
+ * \return Value of that pin
+ *
+ */
 void GPIO3ModuleClkConfig(void)
 {
     /* Writing to MODULEMODE field of CM_PER_GPIO3_CLKCTRL register. */
@@ -375,7 +452,12 @@ void GPIO3ModuleClkConfig(void)
 
 }
 
-
+/**
+ * \brief  Set GPIOPin32PinMux
+ *
+ * \return Value of that pin
+ *
+ */
 unsigned int GPIO1Pin23PinMuxSetup(void)
 {
 
