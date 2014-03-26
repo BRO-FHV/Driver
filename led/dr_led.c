@@ -26,7 +26,7 @@
  *
  *
  */
-void InitLedRegister(void) {
+void LedInitRegister(void) {
 	GPIO1ModuleClkConfig();
 
 	/* Enabling the GPIO module. */
@@ -43,7 +43,7 @@ void InitLedRegister(void) {
  *
  *
  */
-void InitLed0(void) {
+void LedInit0(void) {
 	/* Setting the GPIO pin as an output pin. */
 	GPIODirModeSet(LED_REGISTER, LED0_PIN, GPIO_DIR_OUTPUT);
 }
@@ -53,7 +53,7 @@ void InitLed0(void) {
  *
  *
  */
-void InitLed1(void) {
+void LedInit1(void) {
 	/* Setting the GPIO pin as an output pin. */
 	GPIODirModeSet(LED_REGISTER, LED1_PIN, GPIO_DIR_OUTPUT);
 }
@@ -63,7 +63,7 @@ void InitLed1(void) {
  *
  *
  */
-void InitLed2(void){
+void LedInit2(void){
 
 	/* Setting the GPIO pin as an output pin. */
 	GPIODirModeSet(LED_REGISTER, LED2_PIN, GPIO_DIR_OUTPUT);
@@ -74,7 +74,7 @@ void InitLed2(void){
  *
  *
  */
-void InitLed3(void) {
+void LedInit3(void) {
 	/* Setting the GPIO pin as an output pin. */
 	GPIODirModeSet(LED_REGISTER, LED3_PIN, GPIO_DIR_OUTPUT);
 }
@@ -84,7 +84,7 @@ void InitLed3(void) {
  *
  *
  */
-void OnLed0(void) {
+void LedOn0(void) {
 	GPIOPinWrite(LED_REGISTER, LED0_PIN, GPIO_PIN_HIGH);
 
 
@@ -96,7 +96,7 @@ void OnLed0(void) {
  *
  *
  */
-void OffLed0(void){
+void LedOff0(void){
 
 	/* Driving a logic LOW on the GPIO pin. */
 		GPIOPinWrite(LED_REGISTER, LED0_PIN, GPIO_PIN_LOW);
@@ -107,7 +107,7 @@ void OffLed0(void){
  *
  *
  */
-void OnLed1(void) {
+void LedOn1(void) {
 	GPIOPinWrite(LED_REGISTER, LED1_PIN, GPIO_PIN_HIGH);
 
 
@@ -119,14 +119,14 @@ void OnLed1(void) {
  *
  *
  */
-void OffLed1(void){
+void LedOff1(void){
 
 	/* Driving a logic LOW on the GPIO pin. */
 		GPIOPinWrite(LED_REGISTER, LED1_PIN, GPIO_PIN_LOW);
 }
 
 
-void OnLed2(void) {
+void LedOn2(void) {
 	GPIOPinWrite(LED_REGISTER, LED2_PIN, GPIO_PIN_HIGH);
 
 
@@ -137,7 +137,7 @@ void OnLed2(void) {
  *
  *
  */
-void OffLed2(void){
+void LedOff2(void){
 
 	/* Driving a logic LOW on the GPIO pin. */
 		GPIOPinWrite(LED_REGISTER, LED2_PIN, GPIO_PIN_LOW);
@@ -148,7 +148,7 @@ void OffLed2(void){
  *
  *
  */
-void OnLed3(void) {
+void LedOn3(void) {
 	GPIOPinWrite(LED_REGISTER, LED3_PIN, GPIO_PIN_HIGH);
 
 
@@ -159,7 +159,7 @@ void OnLed3(void) {
  *
  *
  */
-void OffLed3(void){
+void LedOff3(void){
 
 	/* Driving a logic LOW on the GPIO pin. */
 		GPIOPinWrite(LED_REGISTER, LED3_PIN, GPIO_PIN_LOW);

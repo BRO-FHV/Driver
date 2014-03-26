@@ -36,28 +36,22 @@
 /*****************************************************************************
 **                LED Method Definition
 *****************************************************************************/
+void LedInitRegister(void);
 
-void InitLedRegister(void);
+void LedInit0(void);
+void LedOn0(void);
+void LedOff0(void);
 
-void InitLed0(void);
-void OnLed0(void);
-void OffLed0(void);
+void LedInit1(void);
+void LedOn1(void);
+void LedOff1(void);
 
-void InitLed1(void);
-void OnLed1(void);
-void OffLed1(void);
+void LedInit2(void);
+void LedOn2(void);
+void LedOff2(void);
 
-void InitLed2(void);
-void OnLed2(void);
-void OffLed2(void);
-
-void InitLed3(void);
-void OnLed3(void);
-void OffLed3(void);
-
-
-
-
-
+void LedInit3(void);
+void LedOn3(void);
+void LedOff3(void);
 
 #endif /* DR_LED_H_ */

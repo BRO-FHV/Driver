@@ -17,10 +17,9 @@
  */
 #include <stdio.h>
 #include <inttypes.h>
-#include <hw_timer.h>
+#include <timer/hw_timer.h>
 #include "../interrupt/dr_interrupt.h"
 #include <basic.h>
-#include <hw_types.h>
 #include "dr_timer.h"
 
 #define NUMBER_OF_TIMERS	8

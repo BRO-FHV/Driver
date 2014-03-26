@@ -10,7 +10,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include <hw_interrupt.h>
+#include <interrupt/hw_interrupt.h>
 #include "dr_console.h"
 #include "../interrupt/dr_interrupt.h"
 #include "../uart/dr_uart.h"

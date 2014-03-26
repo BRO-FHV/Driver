@@ -13,8 +13,7 @@
 #include <stdlib.h>
 #include <soc_AM335x.h>
 #include <platform/hw_beaglebone.h>
-#include <hw_uart.h>
-#include <hw_types.h>
+#include <uart/hw_uart.h>
 #include <basic.h>
 #include <list/linkedlist.h>
 #include "../interrupt/dr_interrupt.h"

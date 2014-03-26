@@ -11,7 +11,7 @@
 #define UART_H_
 
 #include <inttypes.h>
-#include <hw_uart.h>
+#include <uart/hw_uart.h>
 
 // Values to configure the Operating modes of UART.
 #define UART16x_OPER_MODE                   (UART_MDR1_MODE_SELECT_UART16X)

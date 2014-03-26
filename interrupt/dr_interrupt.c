@@ -10,8 +10,8 @@
 #include <stdio.h>
 #include <basic.h>
 #include <soc_AM335x.h>
-#include <hw_interrupt.h>
-#include <hw_cpu.h>
+#include <interrupt/hw_interrupt.h>
+#include <cpu/hw_cpu.h>
 #include "dr_interrupt.h"
 
 intHandler intHandlers[NUM_INTERRUPTS];
