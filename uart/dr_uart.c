@@ -280,13 +280,13 @@ static uint32_t UartWriteChunk(uint32_t baseAddr) {
 	return lIndex;
 }
 
-uint32_t lcrRegValue = 0;
-uint32_t retVal = 0;
-
 /**
  * \brief reads on byte of of input fifo
  */
 char UartCharGetNonBlocking(uint32_t baseAddr) {
+	uint32_t lcrRegValue = 0;
+	uint32_t retVal = 0;
+
 	// switching to Register Operational Mode of operation
 	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
 
@@ -305,6 +305,8 @@ char UartCharGetNonBlocking(uint32_t baseAddr) {
  * \brief returns TRUE if available chars exists
  */
 tBoolean UartAvailable(unsigned int baseAddr) {
+	uint32_t lcrRegValue = 0;
+	uint32_t retVal = 0;
 
 	// Switching to Register Operational Mode of operation
 	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
@@ -320,13 +322,12 @@ tBoolean UartAvailable(unsigned int baseAddr) {
 	return retVal;
 }
 
-char rxByte;
-
 /**
  * \brief handles uart interrupt
  */
 void UartInterrupt(void) {
 	uint32_t intId = UartIntIdentityGet(SOC_UART_0_REGS);
+	char rxByte;
 
 	switch (intId) {
 	case UART_INTID_TX_THRES_REACH:
@@ -344,7 +345,7 @@ void UartInterrupt(void) {
 		printf("UART_INTID_RX_THRES_REACH\n");
 		rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
 
-		printf("char: %s\r\n", rxByte);
+		printf("char: %c\r\n", rxByte);
 		break;
 
 	case UART_INTID_RX_LINE_STAT_ERROR:
@@ -355,7 +356,7 @@ void UartInterrupt(void) {
 		printf("UART_INTID_CHAR_TIMEOUT\n");
 		while (TRUE == UartAvailable(SOC_UART_0_REGS)) {
 			rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
-			printf("char: %s\r\n", rxByte);
+			printf("char: %c\r\n", rxByte);
 		}
 		break;
 
