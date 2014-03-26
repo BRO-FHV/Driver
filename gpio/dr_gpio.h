@@ -7,6 +7,14 @@
  * TODO
  */
 
+/** ============================================================================
+ *   \file  dr_gpio.h
+ *
+ *   \brief This file contains the information for gpio Moduls, Regs Defintion and constants
+ *
+ *  ============================================================================
+ */
+
 #ifndef DR_GPIO_H_
 #define DR_GPIO_H_
 
