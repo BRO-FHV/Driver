@@ -134,6 +134,7 @@
 #define SYS_INT_SPI1INT                        (125)
 
 typedef void (*intHandler)(void);
+typedef void (*intResetHandler)(void);
 
 void IntControllerInit(void);
 void IntPrioritySet(unsigned int intrNum, unsigned int priority,
@@ -141,7 +142,9 @@ void IntPrioritySet(unsigned int intrNum, unsigned int priority,
 void IntHandlerEnable(uint32_t intNum);
 void IntHandlerDisable(uint32_t intNum);
 void IntRegister(uint32_t intNum, intHandler handler);
+void IntResetRegister(uint32_t intNum, intHandler handler);
 void IntUnRegister(uint32_t intNum);
+void IntUnResetRegister(uint32_t intNum);
 void IntIRQHandler();
 uint32_t IntActiveIrqNumGet(void);
 

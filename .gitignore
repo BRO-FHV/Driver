@@ -6,7 +6,7 @@
 .launches/
 targetConfigs/
 Debug/
-
+Release/
 
 # Object files
 *.o
