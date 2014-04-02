@@ -21,6 +21,10 @@
 #include "../interrupt/dr_interrupt.h"
 #include <basic.h>
 #include "dr_timer.h"
+#include <soc_AM335x.h>
+#include <hw_cm_dpll.h>
+#include <hw_cm_wkup.h>
+#include <hw_cm_per.h>
 
 #define NUMBER_OF_TIMERS	8
 #define RESET_VALUE			0x00
@@ -37,6 +41,7 @@
             										while((reg & (reg32r(baseAdd, twps))));
 
 uint16_t timers[NUMBER_OF_TIMERS];
+static const uint8_t TIMER_FACTOR = 32;
 
 typedef enum {
 	IrqMode_MATCH = 0, IrqMode_OVERFLOW, IrqMode_CAPTURE, IrqMode_ALL
@@ -49,8 +54,11 @@ typedef enum {
 	IrqWakeen_ALL
 } IrqWakeen;
 
+typedef void (*ResetTimerFunc)();
+
 uint32_t GetTimerBaseAddr(Timer timer);
 uint32_t GetTimerInterruptCode(Timer timer);
+ResetTimerFunc GetResetTimerFunc(Timer timer);
 
 void SetIrqWakeenMode(uint32_t baseAddr, IrqWakeen irqwakeen, uint32_t irqWakeenRegister);
 void SetIrqMode(uint32_t baseAddr, IrqMode irqMode, uint32_t irqRegister);
@@ -59,17 +67,20 @@ void EnablePostedMode(uint32_t baseAddr, uint32_t tsicr);
 void EnableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps);
 void DisableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps);
 void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t tcrr, uint32_t tsicr, uint32_t twps);
-void ConfigurationCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr,	uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t twer, uint32_t tier, uint32_t tsicr, uint32_t twps);
+void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t twer, uint32_t tier, uint32_t tsicr, uint32_t twps);
 
-void ClearTimer0IrqStatus();
-void ClearTimer1IrqStatus();
-void ClearTimer2IrqStatus();
-void ClearTimer3IrqStatus();
-void ClearTimer4IrqStatus();
-void ClearTimer5IrqStatus();
-void ClearTimer6IrqStatus();
-void ClearTimer7IrqStatus();
-void ClearTimerCore(uint32_t baseAddr, uint32_t tisr);
+uint32_t IsClockModuleTimerEnabled(Timer timer);
+void ClockModuleEnable(Timer timer);
+void ClockModuleEnableCore(uint32_t dpll_clksel_clk, uint32_t dpll_clksel_clk_clksel, uint32_t dpll_clksel_clk_clksel_sel, uint32_t per_clkctrl, uint32_t per_clkctrl_mode, uint32_t per_ctlctrl_modulemode, uint32_t per_clkctrl_idlest, uint32_t per_clkctrl_idelst_func, uint32_t per_clkactivity_gclk);
+
+void ResetTimer1IrqStatus();
+void ResetTimer2IrqStatus();
+void ResetTimer3IrqStatus();
+void ResetTimer4IrqStatus();
+void ResetTimer5IrqStatus();
+void ResetTimer6IrqStatus();
+void ResetTimer7IrqStatus();
+void ResetTimerCore(uint32_t baseAddr, uint32_t tisr);
 
 /**
  * \brief Enable a timer. ST bit of TCLR is set to 1. No registers were reset!
@@ -197,20 +208,20 @@ void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, u
 	reg32wor(baseAddr, tcrr, RESET_VALUE);
 	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCRR, baseAddr);
 
-	ClearTimerCore(baseAddr, tisr);
+	ResetTimerCore(baseAddr, tisr);
 }
 
 /**
  * \brief Configure the passed timer to raise an interrupt (after passed milliseconds).
  *
  * \param timer	Timer that should be configured.
- * \param milliseconds Time slice after which the interrupt is raised.
+ * \param milliseconds Time slice after which the interrupt is raised. If Timer_TIMER1MS is configured this value can be zero.
  * \param routine This routine is called to handle the interrupt.
  *
  * \return 0 on success, -1 on failure
  */
 int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine routine) {
-	if (1 == timers[timer] || NULL == routine || 0 >= milliseconds) {
+	if (1 == timers[timer] || NULL == routine) {
 		return -1; //timer is already enabled or routine is not set
 	}
 
@@ -220,44 +231,51 @@ int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine 
 		return -1; //failure
 	}
 
-	//TODO feature wish: no prescaler - pass e.g. 500 ms, 1000 ms,...
-//	//TMAR should be less than 0xFFFF FFFF
-//	if(UINT32_MAX == matchValue) {
-//		return -1;
-//	}
-
 	if (1 == timer) {
 		//timer 1 ms
-		DisableCore(timer, baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
+		if(IsClockModuleTimerEnabled(timer)) {
+			DisableCore(timer, baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
+			ResetCore(baseAddr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TWER, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TCRR, TIMER1_TSICR, TIMER1_TWPS);
+		} else {
+			ClockModuleEnable(timer);
+		}
 
-		ResetCore(baseAddr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TWER, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TCRR, TIMER1_TSICR, TIMER1_TWPS);
-
-		ConfigurationCore(baseAddr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TWER, TIMER1_TIER, TIMER1_TSICR, TIMER_TWPS);
+		ConfigurationCore(baseAddr, TIMER1_TLDR, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TWER, TIMER1_TIER, TIMER1_TSICR, TIMER_TWPS);
 	} else {
-		//timer 0, 2 - 7
-		DisableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+		//TMAR should be less than 0xFFFF FFFF
+		uint32_t matchValue = milliseconds * TIMER_FACTOR;
+		if(UINT32_MAX == matchValue || 0 >= matchValue) {
+			return -1;
+		}
 
-		ResetCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
+		//timer 2 - 7
+		if(IsClockModuleTimerEnabled(timer)) {
+			DisableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+			ResetCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
+		} else {
+			ClockModuleEnable(timer);
+		}
 
-		ConfigurationCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_IRQWAKEEN, TIMER_IRQENABLE_SET, TIMER_TSICR, TIMER_TWPS);
+		ConfigurationCore(baseAddr, TIMER_TLDR, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_IRQWAKEEN, TIMER_IRQENABLE_SET, TIMER_TSICR, TIMER_TWPS);
+
+		//defines the match value (e.g. interrupt is raised, if this value is reached)
+		reg32wor(baseAddr, TIMER_TMAR, matchValue);
+		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TMAR, baseAddr)
 	}
 
 	//configure interrupt routine
 	uint32_t irqCode = GetTimerInterruptCode(timer);
 	IntRegister(irqCode, routine);
 	IntHandlerEnable(irqCode);
+	IntResetRegister(irqCode, GetResetTimerFunc(timer));
 
 	return 0;
 }
 
-void ConfigurationCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr,	uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t twer, uint32_t tier, uint32_t tsicr, uint32_t twps) {
+void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t twer, uint32_t tier, uint32_t tsicr, uint32_t twps) {
 
 	//enable posted mode for checking pending writes
 	EnablePostedMode(baseAddr, tsicr);
-
-	//defines the match value (e.g. interrupt is raised, if this value is reached)
-	reg32wor(baseAddr, tmar, (1 << 17));
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TMAR, baseAddr)
 
 	//defines where the timer should start to count (e.g. after a auto reload)
 	reg32wor(baseAddr, tldr, 0x00);
@@ -324,24 +342,43 @@ void SetIrqMode(uint32_t baseAddr, IrqMode irqMode, uint32_t irqRegister) {
 	}
 }
 
+ResetTimerFunc GetResetTimerFunc(Timer timer) {
+	switch (timer) {
+	case Timer_TIMER1MS:
+		return ResetTimer1IrqStatus;
+	case Timer_TIMER2:
+		return ResetTimer2IrqStatus;
+	case Timer_TIMER3:
+		return ResetTimer3IrqStatus;
+	case Timer_TIMER4:
+		return ResetTimer4IrqStatus;
+	case Timer_TIMER5:
+		return ResetTimer5IrqStatus;
+	case Timer_TIMER6:
+		return ResetTimer6IrqStatus;
+	case Timer_TIMER7:
+		return ResetTimer7IrqStatus;
+	default:
+		return NULL;
+	}
+}
+
 uint32_t GetTimerBaseAddr(Timer timer) {
 	switch (timer) {
-	case Timer_TIMER0:
-		return TIMER_0;
 	case Timer_TIMER1MS:
-		return TIMER_1MS;
+		return SOC_DMTIMER_1_REGS;
 	case Timer_TIMER2:
-		return TIMER_2;
+		return SOC_DMTIMER_2_REGS;
 	case Timer_TIMER3:
-		return TIMER_3;
+		return SOC_DMTIMER_3_REGS;
 	case Timer_TIMER4:
-		return TIMER_4;
+		return SOC_DMTIMER_4_REGS;
 	case Timer_TIMER5:
-		return TIMER_5;
+		return SOC_DMTIMER_5_REGS;
 	case Timer_TIMER6:
-		return TIMER_6;
+		return SOC_DMTIMER_6_REGS;
 	case Timer_TIMER7:
-		return TIMER_7;
+		return SOC_DMTIMER_7_REGS;
 	default:
 		return UINT32_MAX;
 	}
@@ -349,8 +386,6 @@ uint32_t GetTimerBaseAddr(Timer timer) {
 
 uint32_t GetTimerInterruptCode(Timer timer) {
 	switch (timer) {
-	case Timer_TIMER0:
-		return SYS_INT_TINT0;
 	case Timer_TIMER1MS:
 		return SYS_INT_TINT1_1MS;
 	case Timer_TIMER2:
@@ -370,39 +405,136 @@ uint32_t GetTimerInterruptCode(Timer timer) {
 	}
 }
 
-void ClearTimer0IrqStatus() {
-	ClearTimerCore(TIMER_0, TIMER_IRQSTATUS);
+void ResetTimer1IrqStatus() {
+	ResetTimerCore(SOC_DMTIMER_1_REGS, TIMER1_TISR);
 }
 
-void ClearTimer1IrqStatus() {
-	ClearTimerCore(TIMER_1MS, TIMER1_TISR);
+void ResetTimer2IrqStatus() {
+	ResetTimerCore(SOC_DMTIMER_2_REGS, TIMER_IRQSTATUS);
 }
 
-void ClearTimer2IrqStatus() {
-	ClearTimerCore(TIMER_2, TIMER_IRQSTATUS);
+void ResetTimer3IrqStatus() {
+	ResetTimerCore(SOC_DMTIMER_3_REGS, TIMER_IRQSTATUS);
 }
 
-void ClearTimer3IrqStatus() {
-	ClearTimerCore(TIMER_3, TIMER_IRQSTATUS);
+void ResetTimer4IrqStatus() {
+	ResetTimerCore(SOC_DMTIMER_4_REGS, TIMER_IRQSTATUS);
 }
 
-void ClearTimer4IrqStatus() {
-	ClearTimerCore(TIMER_4, TIMER_IRQSTATUS);
+void ResetTimer5IrqStatus() {
+	ResetTimerCore(SOC_DMTIMER_5_REGS, TIMER_IRQSTATUS);
 }
 
-void ClearTimer5IrqStatus() {
-	ClearTimerCore(TIMER_5, TIMER_IRQSTATUS);
+void ResetTimer6IrqStatus() {
+	ResetTimerCore(SOC_DMTIMER_6_REGS, TIMER_IRQSTATUS);
 }
 
-void ClearTimer6IrqStatus() {
-	ClearTimerCore(TIMER_6, TIMER_IRQSTATUS);
+void ResetTimer7IrqStatus() {
+	ResetTimerCore(SOC_DMTIMER_7_REGS, TIMER_IRQSTATUS);
 }
 
-void ClearTimer7IrqStatus() {
-	ClearTimerCore(TIMER_7, TIMER_IRQSTATUS);
-}
-
-void ClearTimerCore(uint32_t baseAddr, uint32_t tisr) {
+void ResetTimerCore(uint32_t baseAddr, uint32_t tisr) {
 	//clear all pending interrupt flags
 	reg32an(baseAddr, tisr, TISR_ALL_FLAGS);
+}
+
+uint32_t IsClockModuleTimerEnabled(Timer timer) {
+	switch (timer) {
+	case Timer_TIMER1MS: //no clock configuration
+		return CM_WKUP_TIMER1_CLKCTRL_MODULEMODE_ENABLE == (reg32r(SOC_CM_WKUP_REGS, CM_WKUP_TIMER1_CLKCTRL) & CM_WKUP_TIMER1_CLKCTRL_MODULEMODE);
+	case Timer_TIMER2:
+		return CM_PER_TIMER2_CLKCTRL_MODULEMODE_ENABLE == (reg32r(SOC_CM_PER_REGS, CM_PER_TIMER2_CLKCTRL) & CM_PER_TIMER2_CLKCTRL_MODULEMODE);
+	case Timer_TIMER3:
+		return CM_PER_TIMER3_CLKCTRL_MODULEMODE_ENABLE == (reg32r(SOC_CM_PER_REGS, CM_PER_TIMER3_CLKCTRL) & CM_PER_TIMER3_CLKCTRL_MODULEMODE);
+	case Timer_TIMER4:
+		return CM_PER_TIMER4_CLKCTRL_MODULEMODE_ENABLE == (reg32r(SOC_CM_PER_REGS, CM_PER_TIMER4_CLKCTRL) & CM_PER_TIMER4_CLKCTRL_MODULEMODE);
+	case Timer_TIMER5:
+		return CM_PER_TIMER5_CLKCTRL_MODULEMODE_ENABLE == (reg32r(SOC_CM_PER_REGS, CM_PER_TIMER5_CLKCTRL) & CM_PER_TIMER5_CLKCTRL_MODULEMODE);
+	case Timer_TIMER6:
+		return CM_PER_TIMER6_CLKCTRL_MODULEMODE_ENABLE == (reg32r(SOC_CM_PER_REGS, CM_PER_TIMER6_CLKCTRL) & CM_PER_TIMER6_CLKCTRL_MODULEMODE);
+	case Timer_TIMER7:
+		return CM_PER_TIMER7_CLKCTRL_MODULEMODE_ENABLE == (reg32r(SOC_CM_PER_REGS, CM_PER_TIMER7_CLKCTRL) & CM_PER_TIMER7_CLKCTRL_MODULEMODE);
+	default:
+		return 0;
+	}
+}
+
+void ClockModuleEnable(Timer timer) {
+	switch (timer) {
+	case Timer_TIMER1MS:
+	    reg32an(SOC_CM_DPLL_REGS, CM_DPLL_CLKSEL_TIMER1MS_CLK, CM_DPLL_CLKSEL_TIMER1MS_CLK_CLKSEL);
+	    wait((reg32r(SOC_CM_DPLL_REGS, CM_DPLL_CLKSEL_TIMER1MS_CLK) & CM_DPLL_CLKSEL_TIMER1MS_CLK_CLKSEL) != 0x0);
+
+		reg32w(SOC_CM_DPLL_REGS, CM_DPLL_CLKSEL_TIMER1MS_CLK, CM_DPLL_CLKSEL_TIMER1MS_CLK_CLKSEL_SEL1);
+
+	    wait((reg32r(SOC_CM_DPLL_REGS, CM_DPLL_CLKSEL_TIMER1MS_CLK) & CM_DPLL_CLKSEL_TIMER1MS_CLK_CLKSEL) != CM_DPLL_CLKSEL_TIMER1MS_CLK_CLKSEL_SEL1);
+
+	    reg32m(SOC_CM_WKUP_REGS, CM_WKUP_TIMER1_CLKCTRL, CM_WKUP_TIMER1_CLKCTRL_MODULEMODE_ENABLE);
+
+	    wait((reg32r(SOC_CM_WKUP_REGS, CM_WKUP_TIMER1_CLKCTRL) & CM_WKUP_TIMER1_CLKCTRL_MODULEMODE) != CM_WKUP_TIMER1_CLKCTRL_MODULEMODE_ENABLE);
+
+	    wait((reg32r(SOC_CM_WKUP_REGS, CM_WKUP_TIMER1_CLKCTRL) & CM_WKUP_TIMER1_CLKCTRL_IDLEST) != CM_WKUP_TIMER1_CLKCTRL_IDLEST_FUNC);
+		break;
+	case Timer_TIMER2:
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER2_CLK, CM_DPLL_CLKSEL_TIMER2_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER2_CLK_CLKSEL_SEL3, CM_PER_TIMER2_CLKCTRL,
+								CM_PER_TIMER2_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER2_CLKCTRL_MODULEMODE, CM_PER_TIMER2_CLKCTRL_IDLEST, CM_PER_TIMER2_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER2_GCLK);
+		break;
+	case Timer_TIMER3:
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER3_CLK, CM_DPLL_CLKSEL_TIMER3_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER3_CLK_CLKSEL_SEL3, CM_PER_TIMER3_CLKCTRL,
+								CM_PER_TIMER3_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER3_CLKCTRL_MODULEMODE, CM_PER_TIMER3_CLKCTRL_IDLEST, CM_PER_TIMER3_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER3_GCLK);
+		break;
+	case Timer_TIMER4:
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER4_CLK, CM_DPLL_CLKSEL_TIMER4_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER4_CLK_CLKSEL_SEL3, CM_PER_TIMER4_CLKCTRL,
+								CM_PER_TIMER4_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER4_CLKCTRL_MODULEMODE, CM_PER_TIMER4_CLKCTRL_IDLEST, CM_PER_TIMER4_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER4_GCLK);
+		break;
+	case Timer_TIMER5:
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER5_CLK, CM_DPLL_CLKSEL_TIMER5_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER5_CLK_CLKSEL_SEL3, CM_PER_TIMER5_CLKCTRL,
+								CM_PER_TIMER5_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER5_CLKCTRL_MODULEMODE, CM_PER_TIMER5_CLKCTRL_IDLEST, CM_PER_TIMER5_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER5_GCLK);
+		break;
+	case Timer_TIMER6:
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER6_CLK, CM_DPLL_CLKSEL_TIMER6_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER6_CLK_CLKSEL_SEL3, CM_PER_TIMER6_CLKCTRL,
+								CM_PER_TIMER6_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER6_CLKCTRL_MODULEMODE, CM_PER_TIMER6_CLKCTRL_IDLEST, CM_PER_TIMER6_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER6_GCLK);
+		break;
+	case Timer_TIMER7:
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER7_CLK, CM_DPLL_CLKSEL_TIMER7_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER7_CLK_CLKSEL_SEL3, CM_PER_TIMER7_CLKCTRL,
+								CM_PER_TIMER7_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER7_CLKCTRL_MODULEMODE, CM_PER_TIMER7_CLKCTRL_IDLEST, CM_PER_TIMER7_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER7_GCLK);
+		break;
+	}
+}
+
+void ClockModuleEnableCore(uint32_t dpll_clksel_clk, uint32_t dpll_clksel_clk_clksel, uint32_t dpll_clksel_clk_clksel_sel, uint32_t per_clkctrl,
+		uint32_t per_clkctrl_mode, uint32_t per_ctlctrl_modulemode, uint32_t per_clkctrl_idlest, uint32_t per_clkctrl_idelst_func, uint32_t per_clkactivity_gclk) {
+
+	reg32w(SOC_CM_PER_REGS, CM_PER_L3S_CLKSTCTRL, CM_PER_L3S_CLKSTCTRL_CLKTRCTRL_SW_WKUP);
+	wait((reg32r(SOC_CM_PER_REGS, CM_PER_L3S_CLKSTCTRL) & CM_PER_L3S_CLKSTCTRL_CLKTRCTRL) != CM_PER_L3S_CLKSTCTRL_CLKTRCTRL_SW_WKUP);
+
+	reg32w(SOC_CM_PER_REGS, CM_PER_L3_CLKSTCTRL, CM_PER_L3_CLKSTCTRL_CLKTRCTRL_SW_WKUP);
+	wait((reg32r(SOC_CM_PER_REGS, CM_PER_L3_CLKSTCTRL) & CM_PER_L3_CLKSTCTRL_CLKTRCTRL) != CM_PER_L3_CLKSTCTRL_CLKTRCTRL_SW_WKUP);
+
+	reg32w(SOC_CM_PER_REGS, CM_PER_L3_INSTR_CLKCTRL, CM_PER_L3_INSTR_CLKCTRL_MODULEMODE_ENABLE);
+	wait((reg32r(SOC_CM_PER_REGS, CM_PER_L3_INSTR_CLKCTRL) & CM_PER_L3_INSTR_CLKCTRL_MODULEMODE) != CM_PER_L3_INSTR_CLKCTRL_MODULEMODE_ENABLE);
+
+	reg32w(SOC_CM_PER_REGS, CM_PER_L3_CLKCTRL, CM_PER_L3_CLKCTRL_MODULEMODE_ENABLE);
+	wait((reg32r(SOC_CM_PER_REGS, CM_PER_L3_CLKCTRL) & CM_PER_L3_CLKCTRL_MODULEMODE) != CM_PER_L3_CLKCTRL_MODULEMODE_ENABLE);
+
+	reg32w(SOC_CM_PER_REGS, CM_PER_OCPWP_L3_CLKSTCTRL, CM_PER_OCPWP_L3_CLKSTCTRL_CLKTRCTRL_SW_WKUP);
+	wait((reg32r(SOC_CM_PER_REGS, CM_PER_OCPWP_L3_CLKSTCTRL) & CM_PER_OCPWP_L3_CLKSTCTRL_CLKTRCTRL) != CM_PER_OCPWP_L3_CLKSTCTRL_CLKTRCTRL_SW_WKUP);
+
+	reg32w(SOC_CM_PER_REGS, CM_PER_L4LS_CLKSTCTRL, CM_PER_L4LS_CLKSTCTRL_CLKTRCTRL_SW_WKUP);
+	wait((reg32r(SOC_CM_PER_REGS, CM_PER_L4LS_CLKSTCTRL) & CM_PER_L4LS_CLKSTCTRL_CLKTRCTRL) != CM_PER_L4LS_CLKSTCTRL_CLKTRCTRL_SW_WKUP);
+
+	reg32w(SOC_CM_PER_REGS, CM_PER_L4LS_CLKCTRL, CM_PER_L4LS_CLKCTRL_MODULEMODE_ENABLE);
+	wait((reg32r(SOC_CM_PER_REGS, CM_PER_L4LS_CLKCTRL) & CM_PER_L4LS_CLKCTRL_MODULEMODE) != CM_PER_L4LS_CLKCTRL_MODULEMODE_ENABLE);
+
+	reg32an(SOC_CM_DPLL_REGS, dpll_clksel_clk, dpll_clksel_clk_clksel);
+	reg32m(SOC_CM_DPLL_REGS, dpll_clksel_clk, dpll_clksel_clk_clksel_sel);
+	wait((reg32r(SOC_CM_DPLL_REGS, dpll_clksel_clk) & dpll_clksel_clk_clksel) != dpll_clksel_clk_clksel_sel);
+
+	reg32m(SOC_CM_PER_REGS, per_clkctrl, per_clkctrl_mode);
+	wait((reg32r(SOC_CM_PER_REGS, per_clkctrl) & per_ctlctrl_modulemode) != per_clkctrl_mode);
+	wait((reg32r(SOC_CM_PER_REGS, per_clkctrl) & per_clkctrl_idlest) != per_clkctrl_idelst_func);
+	wait(!(reg32r(SOC_CM_PER_REGS, CM_PER_L3S_CLKSTCTRL) & CM_PER_L3S_CLKSTCTRL_CLKACTIVITY_L3S_GCLK));
+	wait(!(reg32r(SOC_CM_PER_REGS, CM_PER_L3_CLKSTCTRL) & CM_PER_L3_CLKSTCTRL_CLKACTIVITY_L3_GCLK));
+	wait(!(reg32r(SOC_CM_PER_REGS, CM_PER_OCPWP_L3_CLKSTCTRL) & (CM_PER_OCPWP_L3_CLKSTCTRL_CLKACTIVITY_OCPWP_L3_GCLK | CM_PER_OCPWP_L3_CLKSTCTRL_CLKACTIVITY_OCPWP_L4_GCLK)));
+	wait(!(reg32r(SOC_CM_PER_REGS, CM_PER_L4LS_CLKSTCTRL) & (CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_L4LS_GCLK | per_clkactivity_gclk)));
 }

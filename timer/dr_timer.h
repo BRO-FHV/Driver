@@ -15,8 +15,7 @@
 #define DR_TIMER_H_
 
 typedef enum {
-	Timer_TIMER0 = 0,
-	Timer_TIMER1MS,
+	Timer_TIMER1MS = 1,
 	Timer_TIMER2,
 	Timer_TIMER3,
 	Timer_TIMER4,

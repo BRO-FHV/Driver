@@ -11,7 +11,7 @@
 ;
 ; shared header files
 ;
-	.cdecls C,LIST,"hw_interrupt.h"
+	.cdecls C,LIST,"interrupt/hw_interrupt.h"
 	.cdecls C,LIST,"soc_AM335x.h"
 
 ;
