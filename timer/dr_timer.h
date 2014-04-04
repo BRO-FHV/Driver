@@ -14,6 +14,8 @@
 #ifndef DR_TIMER_H_
 #define DR_TIMER_H_
 
+#include <inttypes.h>
+
 typedef enum {
 	Timer_TIMER1MS = 1,
 	Timer_TIMER2,

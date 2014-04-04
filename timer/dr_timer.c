@@ -14,9 +14,11 @@
  * All timers are configured with auto-reload, capture enabled, posted mode and
  * to raise an interrupt when the set time (passed as parameter to TimerConfiguration method=
  * is over.
+ *
+ * The Timer 1 is configured as 1 ms interrupt timer.
+ * The standard clock rate for timer 2 to 6 is 32 KHz. Timer 7 uses the oscillator clock rate.
  */
 #include <stdio.h>
-#include <inttypes.h>
 #include <timer/hw_timer.h>
 #include "../interrupt/dr_interrupt.h"
 #include <basic.h>
@@ -496,7 +498,7 @@ void ClockModuleEnable(Timer timer) {
 								CM_PER_TIMER6_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER6_CLKCTRL_MODULEMODE, CM_PER_TIMER6_CLKCTRL_IDLEST, CM_PER_TIMER6_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER6_GCLK);
 		break;
 	case Timer_TIMER7:
-		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER7_CLK, CM_DPLL_CLKSEL_TIMER7_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER7_CLK_CLKSEL_SEL3, CM_PER_TIMER7_CLKCTRL,
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER7_CLK, CM_DPLL_CLKSEL_TIMER7_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER7_CLK_CLKSEL_CLK_M_OSC, CM_PER_TIMER7_CLKCTRL,
 								CM_PER_TIMER7_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER7_CLKCTRL_MODULEMODE, CM_PER_TIMER7_CLKCTRL_IDLEST, CM_PER_TIMER7_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER7_GCLK);
 		break;
 	}
