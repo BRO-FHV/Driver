@@ -10,7 +10,6 @@
 #ifndef DR_ETH_H_
 #define DR_ETH_H_
 
-#include "basic.h"
 #include <inttypes.h>
 
 uint32_t EthConfigureWithIP(uint32_t ip);

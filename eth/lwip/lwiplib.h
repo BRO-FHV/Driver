@@ -41,20 +41,20 @@
 #ifndef __LWIPLIB_H__
 #define __LWIPLIB_H__
 
-#include "src/include/lwip/opt.h"
+#include "opt.h"
 
 /* Ensure that AUTOIP COOP option is configured correctly.*/
 #undef LWIP_DHCP_AUTOIP_COOP
 #define LWIP_DHCP_AUTOIP_COOP   ((LWIP_DHCP) && (LWIP_AUTOIP))
 
-#include "src/include/lwip/api.h"
-#include "src/include/lwip/netifapi.h"
-#include "src/include/lwip/tcp.h"
-#include "src/include/lwip/udp.h"
-#include "src/include/lwip/tcpip.h"
-#include "src/include/lwip/sockets.h"
-#include "src/include/lwip/mem.h"
-#include "src/include/lwip/stats.h"
+#include "api.h"
+#include "netifapi.h"
+#include "tcp.h"
+#include "udp.h"
+#include "tcpip.h"
+#include "sockets.h"
+#include "mem.h"
+#include "stats.h"
 
 /******************************************************************************
 **                            Macro Definitions

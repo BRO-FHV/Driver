@@ -38,7 +38,7 @@
 void GPIOModuleEnable(unsigned int baseAdd)
 {
     /* Clearing the DISABLEMODULE bit in the Control(CTRL) register. */
-    reg32an(baseAdd , GPIO_CTRL,GPIO_CTRL_DISABLEMODULE);
+    reg32an(baseAdd , GPIO_CTRL, GPIO_CTRL_DISABLEMODULE);
 }
 
 /**
