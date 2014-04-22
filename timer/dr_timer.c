@@ -42,7 +42,15 @@
 #define WaitForWrite(tsicr, twps, reg, baseAdd) if(reg32r(baseAdd, tsicr) & TSICR_POSTED)\
             										while((reg & (reg32r(baseAdd, twps))));
 
-uint16_t timers[NUMBER_OF_TIMERS];
+#define TIMER_INITIAL_COUNT             (0xFFFFA23Fu)
+#define TIMER_1MS_COUNT                 (0x5DC0u)
+#define TIMER_OVERFLOW                  (0xFFFFFFFFu)
+#define DELAY_USE_INTERRUPTS            1
+
+static void DelayTimerIsr(void);
+static volatile unsigned int flagIsr = 1;
+
+static uint16_t timers[NUMBER_OF_TIMERS];
 static const uint8_t TIMER_FACTOR = 32;
 
 typedef enum {
@@ -83,6 +91,14 @@ void ResetTimer5IrqStatus();
 void ResetTimer6IrqStatus();
 void ResetTimer7IrqStatus();
 void ResetTimerCore(uint32_t baseAddr, uint32_t tisr);
+
+void ShutdownDelayTimer();
+void EnableDelayTimerInterrupts();
+void DisableDelayTimerInterrupts();
+void SetDelayTimerCounterValue(uint32_t value);
+void EnableDelayTimer();
+void DisableDelayTimer();
+uint32_t GetDelayTimerCounterValue();
 
 /**
  * \brief Enable a timer. ST bit of TCLR is set to 1. No registers were reset!
@@ -539,4 +555,226 @@ void ClockModuleEnableCore(uint32_t dpll_clksel_clk, uint32_t dpll_clksel_clk_cl
 	wait(!(reg32r(SOC_CM_PER_REGS, CM_PER_L3_CLKSTCTRL) & CM_PER_L3_CLKSTCTRL_CLKACTIVITY_L3_GCLK));
 	wait(!(reg32r(SOC_CM_PER_REGS, CM_PER_OCPWP_L3_CLKSTCTRL) & (CM_PER_OCPWP_L3_CLKSTCTRL_CLKACTIVITY_OCPWP_L3_GCLK | CM_PER_OCPWP_L3_CLKSTCTRL_CLKACTIVITY_OCPWP_L4_GCLK)));
 	wait(!(reg32r(SOC_CM_PER_REGS, CM_PER_L4LS_CLKSTCTRL) & (CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_L4LS_GCLK | per_clkactivity_gclk)));
+}
+
+/**
+ * \brief   This function configures timer 7 to be used as delay timer.
+ *
+ * \param   None
+ *
+ * \return  None.
+ *
+ */
+void TimerDelaySetup() {
+	//timer 7
+	if(IsClockModuleTimerEnabled(Timer_TIMER7)) {
+		DisableCore(Timer_TIMER7, SOC_DMTIMER_7_REGS, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+		ResetCore(SOC_DMTIMER_7_REGS, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
+	} else {
+		ClockModuleEnable(Timer_TIMER7);
+	}
+
+	//enable posted mode for checking pending writes
+	EnablePostedMode(SOC_DMTIMER_7_REGS, TIMER_TSICR);
+
+	//defines where the timer should start to count (e.g. after a auto reload)
+	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TLDR, 0x00);
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TLDR, SOC_DMTIMER_7_REGS)
+
+	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
+	//Reload will be done regardless of the AR field value of TCLR register.
+	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TTGR, RESET_VALUE);
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TTGR, SOC_DMTIMER_7_REGS)
+
+	//set one shot and no compare enabled
+	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ONESHOT_NOCMP_ENABLE);
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
+
+    /* Set the counter value */
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, SOC_DMTIMER_7_REGS)
+    reg32w(SOC_DMTIMER_7_REGS, TIMER_TCRR, RESET_VALUE);
+#ifdef DELAY_USE_INTERRUPTS
+	//clear pending interrupts
+	reg32an(SOC_DMTIMER_7_REGS, TIMER_IRQSTATUS, TISR_ALL_FLAGS);
+
+	SetIrqWakeenMode(SOC_DMTIMER_7_REGS, IrqWakeen_MAT_WUP_ENA, TIMER_IRQWAKEEN);
+	SetIrqMode(SOC_DMTIMER_7_REGS, IrqMode_MATCH, TIMER_IRQENABLE_SET);
+
+    /* Registering DelayTimerIsr */
+    IntRegister(SYS_INT_TINT7, DelayTimerIsr);
+    /* Set the priority */
+    IntPrioritySet(SYS_INT_TINT7, 0, AINTC_HOSTINT_ROUTE_IRQ);
+
+    //TODO CHECK IF NEEDED
+    /* Enable the system interrupt */
+    //IntSystemEnable(SYS_INT_TINT7);
+#endif
+}
+
+/**
+ * \brief   This function generates a delay of specified milli-seconds.
+ *
+ * \param   milliSec     This is the number of milli-seconds of delay.
+ *
+ * \return  None.
+ *
+ * \Note   This function should not be called when StartTimer, StopTimer and
+ *         IsTimerElapsed functionality is in use.
+ */
+void TimerDelayDelay(uint32_t milliSec) {
+#ifdef DELAY_USE_INTERRUPTS
+    unsigned int countVal = TIMER_OVERFLOW - (milliSec * TIMER_1MS_COUNT);
+
+    SetDelayTimerCounterValue(countVal);
+
+    flagIsr = FALSE;
+
+    EnableDelayTimerInterrupts();
+
+    EnableDelayTimer();
+
+    while(FALSE == flagIsr) ;
+
+    DisableDelayTimerInterrupts();
+
+#else
+    while(milliSec != 0)
+    {
+    	SetDelayTimerCounterValue(RESET_VALUE);
+    	EnableDelayTimer();
+        while(GetDelayTimerCounterValue() < TIMER_1MS_COUNT);
+        DisableDelayTimer();
+        milliSec--;
+    }
+
+#endif
+}
+
+/**
+ * \brief   This function starts the timer for millisec timeout.
+ *
+ * \param   milliSec     This is the number of milli-seconds of delay.
+ *
+ * \return  None.
+ */
+void TimerDelayStart(uint32_t millisec) {
+#ifdef DELAY_USE_INTERRUPTS
+    uint32_t countVal = TIMER_OVERFLOW - (millisec * TIMER_1MS_COUNT);
+
+    // Set the counter value
+    SetDelayTimerCounterValue(countVal);
+
+    flagIsr = FALSE;
+
+    EnableDelayTimerInterrupts();
+#else
+    // Set the counter value
+    SetDelayTimerCounterValue(RESET_VALUE);
+    flagIsr = milliSec;
+#endif
+
+	EnableDelayTimer();
+}
+
+/**
+ * \brief   This function starts the timer for millisec timeout.
+ *
+ * \param   None.
+ *
+ * \return  None.
+ *
+ * \NOTE    delay functionality cannot be used till StopTimer is called.
+ */
+void TimerDelayStop() {
+	ShutdownDelayTimer();
+#ifdef DELAY_USE_INTERRUPTS
+	DisableDelayTimerInterrupts();
+#endif
+}
+
+/**
+ * \brief   This function checks whether timer is expired for set milli secs
+ *
+ * \param   None.
+ *
+ * \return  None.
+ *
+ * \NOTE  	delay functionality cannot be used till SysStopTimer is called.
+ */
+uint32_t TimerDelayIsElapsed() {
+#ifdef DELAY_USE_INTERRUPTS
+
+    return flagIsr;
+
+#else
+    if(GetDelayTimerCounterValue() < (flagIsr * TIMER_1MS_COUNT))
+    {
+        return FALSE;
+    }
+    else
+    {
+        return TRUE;
+    }
+#endif
+}
+
+/*
+** DMTimer Interrupt Service Routine.
+*/
+
+static void DelayTimerIsr(void)
+{
+    // Clear the status of the interrupt flags
+	//TODO CHECK IF IT IS WORKING
+    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQSTATUS, (TISR_OVF_IT_FLAG & (TISR_TCAR_IT_FLAG | TISR_OVF_IT_FLAG | TISR_MAT_IT_FLAG)));
+
+	ShutdownDelayTimer();
+
+    flagIsr = TRUE;
+}
+
+void ShutdownDelayTimer() {
+	//shut down timer
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
+	reg32an(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ST);
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
+}
+
+void EnableDelayTimerInterrupts() {
+    // Enable the interrupts
+    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_SET, IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG));
+}
+
+void DisableDelayTimerInterrupts() {
+	// Disable the interrupts
+    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_CLR, (IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG)));
+}
+
+void SetDelayTimerCounterValue(uint32_t value) {
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, SOC_DMTIMER_7_REGS)
+    // Set the counter value
+    reg32w(SOC_DMTIMER_7_REGS, TIMER_TCRR, value);
+}
+
+void EnableDelayTimer() {
+	// Start the Timer
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
+
+	reg32m(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ST);
+}
+
+void DisableDelayTimer() {
+    /* Wait for previous write to complete */
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
+
+    /* Stop the timer */
+	reg32an(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ST);
+}
+
+uint32_t GetDelayTimerCounterValue() {
+	// Wait for previous write to complete
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, SOC_DMTIMER_7_REGS)
+
+	// Read the counter value from TCRR
+	return reg32r(SOC_DMTIMER_7_REGS, TIMER_TCRR) ;
 }
