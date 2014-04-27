@@ -21,7 +21,7 @@ static void IntDefaultHandler(void);
 static void IntDefaultResetHandler(void);
 
 void IntControllerInit(void) {
-	unsigned int intNum;
+	uint32_t intNum;
 
 	// Reset the ARM interrupt controller
 	reg32w(SOC_AINTC_REGS, INTC_SYSCONFIG, INTC_SYSCONFIG_SOFTRESET);
@@ -110,6 +110,61 @@ void IntIRQHandler() {
  **/
 uint32_t IntActiveIrqNumGet(void) {
 	return (reg32r(SOC_AINTC_REGS, INTC_SIR_IRQ) & INTC_SIR_IRQ_ACTIVEIRQ);
+}
+
+/**
+ * \brief   Returns the status of the interrupts FIQ and IRQ.
+ *
+ * \param    None
+ *
+ * \return   Status of interrupt as in CPSR.
+ *
+ *  Note: This function call shall be done only in previleged mode of ARM
+ **/
+uint32_t IntMasterStatusGet(void)
+{
+    uint32_t stat;
+
+    //TODO REVIEW
+    /* IRQ and FIQ in CPSR */
+    //asm("    mrs     r0, CPSR and %[result], r0, #0xC0" : [result] "=r" (stat));
+
+    return stat;
+}
+
+/**
+ * \brief  Enables the processor IRQ only in CPSR. Makes the processor to
+ *         respond to IRQs.  This does not affect the set of interrupts
+ *         enabled/disabled in the AINTC.
+ *
+ * \param    None
+ *
+ * \return   None
+ *
+ *  Note: This function call shall be done only in previleged mode of ARM
+ **/
+void IntMasterIRQEnable(void)
+{
+    /* Enable IRQ in CPSR.*/
+    CPUirqe();
+
+}
+
+/**
+ * \brief  Disables the processor IRQ only in CPSR.Prevents the processor to
+ *         respond to IRQs.  This does not affect the set of interrupts
+ *         enabled/disabled in the AINTC.
+ *
+ * \param    None
+ *
+ * \return   None
+ *
+ *  Note: This function call shall be done only in previleged mode of ARM
+ **/
+void IntMasterIRQDisable(void)
+{
+    /* Disable IRQ in CPSR.*/
+    CPUirqd();
 }
 
 /**

@@ -38,6 +38,10 @@ uint32_t EthConfigureWithDHCP() {
 uint32_t ConfigureCore(uint32_t ip = 0) {
 	LWIP_IF lwipIfPort;
 
+	#ifdef LWIP_CACHE_ENABLED
+		CacheEnable(CACHE_ALL);
+	#endif
+
 	CPSWPinMuxSetup();
 	CPSWClkEnable();
 

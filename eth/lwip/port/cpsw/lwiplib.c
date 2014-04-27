@@ -109,9 +109,9 @@
 /*
 ** CPSW-specific lwIP interface/porting layer code.
 */
-#include "ports/cpsw/perf.c"
-#include "ports/cpsw/sys_arch.c"
-#include "ports/cpsw/netif/cpswif.c"
+#include "port/cpsw/perf.c"
+#include "port/cpsw/sys_arch.c"
+#include "port/cpsw/netif/cpswif.c"
 #include "locator.c"
 
 /******************************************************************************

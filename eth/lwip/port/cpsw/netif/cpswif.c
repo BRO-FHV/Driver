@@ -56,11 +56,11 @@
 #include "../include/arch/cc.h"
 
 /* DriverLib Header Files required for this interface driver. */
-#include "cpsw.h"
-#include "mdio.h"
+#include "eth/cpsw/dr_cpsw.h"
+#include "eth/mdio/dr_mdio.h"
 #include "interrupt/dr_interrupt.h"
-#include "delay.h"
-#include "phy.h" 
+#include "timer/dr_timer.h"
+#include "eth/phy/dr_phy.h"
 #include "cache.h"
 
 /* CPPI RAM size in bytes */
@@ -1194,7 +1194,7 @@ cpswif_phy_autoneg(struct cpswinst *cpswinst, u32_t port_num, u32_t adv) {
                        cpswinst->port[port_num -1].phy_addr,
                        &adv_val, &gig_adv_val) == TRUE) {
     while (aut_neg_cnt) {
-      delay(50);
+      TimerDelayDelay(50);
       auto_stat = PhyAutoNegStatusGet(cpswinst->mdio_base,
                                       cpswinst->port[port_num -1].phy_addr);
       if (TRUE == auto_stat) {
@@ -1323,7 +1323,7 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
   if (TRUE == (PhyLinkStatusGet(cpswinst->mdio_base,
                cpswinst->port[port_num - 1].phy_addr, 1000))) {
    while (frc_stat_cnt) {
-      delay(50);
+	  TimerDelayDelay(50);
       /* Check if PHY link is there or not */
       frc_stat = (PhyLinkStatusGet(cpswinst->mdio_base,
                   cpswinst->port[port_num - 1].phy_addr, 1000));
@@ -1344,7 +1344,7 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
   if (PhyConfigure(cpswinst->mdio_base, cpswinst->port[port_num -1].phy_addr,
                    speed_val, duplex_val)) {
     while (frc_stat_cnt) {
-      delay(50);
+      TimerDelayDelay(50);
       frc_stat = PhyLinkStatusGet(cpswinst->mdio_base,
                            cpswinst->port[port_num - 1].phy_addr, 1000);
 
@@ -1443,7 +1443,7 @@ cpswif_autoneg_config(u32_t inst_num, u32_t port_num) {
                       cpswinst->port[port_num -1].phy_addr,
                       &adv_val, &gig_adv_val) == TRUE) {
     while(aut_neg_cnt) {
-      delay(50);
+      TimerDelayDelay(50);
       auto_stat = PhyAutoNegStatusGet(cpswinst->mdio_base,
                                       cpswinst->port[port_num -1].phy_addr);
       if(TRUE == auto_stat) {
@@ -1941,7 +1941,7 @@ cpswif_inst_init(struct cpswportif *cpswif){
 
   /* Initialize MDIO */
   MDIOInit(cpswinst->mdio_base, MDIO_FREQ_INPUT, MDIO_FREQ_OUTPUT);
-  delay(1);
+  TimerDelayDelay(1);
 
   CPSWALEInit(cpswinst->ale_base);
 
