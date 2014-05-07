@@ -41,7 +41,7 @@
 
 
 #include "hs_mmcsd.h"
-#include "edma.h"
+#include "../edma/edma.h"
 #include "uartStdio.h"
 #include "mmcsd_proto.h"
 #include "string.h"

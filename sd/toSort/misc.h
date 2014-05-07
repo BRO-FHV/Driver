@@ -1,8 +1,8 @@
 /**
- * \file   delay.h
+ * \file   misc.h
  *
  * \brief  This file contains the prototypes of the functions present in
- *         utils/src/delay.c
+ *         utils/misc.c
  */
 
 /*
@@ -39,30 +39,42 @@
 *
 */
 
-
-#ifndef _DELAY_H_
-#define _DELAY_H_
+#ifndef _MISC_H_
+#define _MISC_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-void DelayTimerSetup(void);
-void delay(unsigned int milliSec);
-void StartTimer(unsigned int millisec);
-void StopTimer();
-unsigned int IsTimerElapsed(void);
+
+/****************************************************************************
+**                       MACRO DEFINITIONS
+****************************************************************************/
+
 /*
-* External functions
+** Round-off division value to upper integer. The parameters passed for this
+** macro should be greater than 1.
 */
-extern void SysDelayTimerSetup(void);
-extern void Sysdelay(unsigned int milliSec);
-extern void SysStartTimer(unsigned int millisec);
-extern void SysStopTimer(void);
-extern unsigned int SysIsTimerElapsed(void);
+#define DIV_CEIL(a,b)       (((a) + (b) - 1) / (b))
+
+/*  Deprecated function - Compiler message */
+#ifdef __GNUC__
+    #define DEPRECATED(func) func __attribute__ ((deprecated))
+#else
+    #define DEPRECATED(func) func
+#endif
+
+/* WFI intstruction */
+#define wfi()                                   asm("   WFI");
+
+/****************************************************************************
+**                       FUNCTION DECLARATIONS
+****************************************************************************/
+
+extern unsigned short bcdAdd(unsigned char bcd1, unsigned char bcd2);
+extern unsigned int addTime(unsigned int time1, unsigned int time2,
+                            unsigned int *date);
 
 #ifdef __cplusplus
 }
 #endif
 #endif
-
-

@@ -46,8 +46,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "hw_edma3cc.h"
-#include "hw_edma3tc.h"
+#include "edma/hw_edma3cc.h"
+#include "edma/hw_edma3tc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -195,8 +195,7 @@ extern "C" {
 
 #define    EDMA_REVID_AM335X                  (0x02u)
 
-#if defined(am335x) || defined(am335x_13x13) || defined(am335x_15x15) || \
-    defined(c6a811x) || defined(am386x) || defined(c6741x)
+
 #define SOC_EDMA3_NUM_DMACH                 64
 #define SOC_EDMA3_NUM_QDMACH                8
 #define SOC_EDMA3_NUM_PARAMSETS             256
@@ -204,17 +203,8 @@ extern "C" {
 #define SOC_EDMA3_CHMAPEXIST                0
 #define SOC_EDMA3_NUM_REGIONS               8
 #define SOC_EDMA3_MEMPROTECT                0
-#endif
 
-#if defined(am1808) || defined(omapl138) || defined(c6748)
-#define SOC_EDMA3_NUM_DMACH                 32
-#define SOC_EDMA3_NUM_QDMACH                8
-#define SOC_EDMA3_NUM_PARAMSETS             128
-#define SOC_EDMA3_NUM_EVQUE                 2
-#define SOC_EDMA3_CHMAPEXIST                0
-#define SOC_EDMA3_NUM_REGIONS               4
-#define SOC_EDMA3_MEMPROTECT                0
-#endif
+
 
 /** Number of TCCS available */
 #define EDMA3_NUM_TCC                        SOC_EDMA3_NUM_DMACH

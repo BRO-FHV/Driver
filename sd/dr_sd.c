@@ -9,14 +9,13 @@
 
 #include "mmcsd_proto.h"
 #include "hs_mmcsdlib.h"
-#include "beaglebone.h"
-#include "edma_event.h"
 #include "soc_AM335x.h"
-#include "consoleUtils.h"
 #include "hs_mmcsd.h"
+#include "../edma/edma_event.h"
 #include "string.h"
-#include "delay.h"
-#include "edma.h"
+#include "dr_interrupt.h"
+#include "../edma/edma.h"
+
 /******************************************************************************
 **                      INTERNAL MACRO DEFINITIONS
 *******************************************************************************/
@@ -92,99 +91,11 @@ volatile unsigned int cmdCompFlag = 0;
 volatile unsigned int cmdTimeout = 0;
 volatile unsigned int errFlag = 0;
 
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma data_alignment=SOC_CACHELINE_SIZE
-unsigned char data[HSMMCSD_DATA_SIZE];
-
-#elif defined(__TMS470__)
-#pragma DATA_ALIGN(data, SOC_CACHELINE_SIZE);
-unsigned char data[HSMMCSD_DATA_SIZE];
-
-#elif defined(gcc)
-unsigned char data[HSMMCSD_DATA_SIZE]
-                    __attribute__ ((aligned (SOC_CACHELINE_SIZE)))= {0};
-
-#else
-#error "Unsupported Compiler. \r\n"
-
-#endif
-
-/* page tables start must be aligned in 16K boundary */                  //
-#ifdef __TMS470__
-#pragma DATA_ALIGN(pageTable, MMU_PAGETABLE_ALIGN_SIZE);
-static volatile unsigned int pageTable[MMU_PAGETABLE_NUM_ENTRY];
-#elif defined(__IAR_SYSTEMS_ICC__)
-#pragma data_alignment=MMU_PAGETABLE_ALIGN_SIZE
-static volatile unsigned int pageTable[MMU_PAGETABLE_NUM_ENTRY];
-#elif defined(gcc)
-static volatile unsigned int pageTable[MMU_PAGETABLE_NUM_ENTRY]
-            __attribute__((aligned(MMU_PAGETABLE_ALIGN_SIZE)));
-#else
-#error "Unsupported Compiler. \r\n"
-#endif
 
 /******************************************************************************
 **                          FUNCTION DEFINITIONS
 *******************************************************************************/
 
-/*
-** This function will setup the MMU. The function maps three regions -
-** 1. DDR
-** 2. OCMC RAM
-** 3. Device memory
-** The function also enables the MMU.
-*/
-void MMUConfigAndEnable(void)
-{
-    /*
-    ** Define DDR memory region of AM335x. DDR can be configured as Normal
-    ** memory with R/W access in user/privileged modes. The cache attributes
-    ** specified here are,
-    ** Inner - Write through, No Write Allocate
-    ** Outer - Write Back, Write Allocate
-    */
-    REGION regionDdr = {
-                        MMU_PGTYPE_SECTION, START_ADDR_DDR, NUM_SECTIONS_DDR,
-                        MMU_MEMTYPE_NORMAL_NON_SHAREABLE(MMU_CACHE_WT_NOWA,
-                                                         MMU_CACHE_WB_WA),
-                        MMU_REGION_NON_SECURE, MMU_AP_PRV_RW_USR_RW,
-                        (unsigned int*)pageTable
-                       };
-    /*
-    ** Define OCMC RAM region of AM335x. Same Attributes of DDR region given.
-    */
-    REGION regionOcmc = {
-                         MMU_PGTYPE_SECTION, START_ADDR_OCMC, NUM_SECTIONS_OCMC,
-                         MMU_MEMTYPE_NORMAL_NON_SHAREABLE(MMU_CACHE_WT_NOWA,
-                                                          MMU_CACHE_WB_WA),
-                         MMU_REGION_NON_SECURE, MMU_AP_PRV_RW_USR_RW,
-                         (unsigned int*)pageTable
-                        };
-
-    /*
-    ** Define Device Memory Region. The region between OCMC and DDR is
-    ** configured as device memory, with R/W access in user/privileged modes.
-    ** Also, the region is marked 'Execute Never'.
-    */
-    REGION regionDev = {
-                        MMU_PGTYPE_SECTION, START_ADDR_DEV, NUM_SECTIONS_DEV,
-                        MMU_MEMTYPE_DEVICE_SHAREABLE,
-                        MMU_REGION_NON_SECURE,
-                        MMU_AP_PRV_RW_USR_RW  | MMU_SECTION_EXEC_NEVER,
-                        (unsigned int*)pageTable
-                       };
-
-    /* Initialize the page table and MMU */
-    MMUInit((unsigned int*)pageTable);
-
-    /* Map the defined regions */
-    MMUMemRegionMap(&regionDdr);
-    MMUMemRegionMap(&regionOcmc);
-    MMUMemRegionMap(&regionDev);
-
-    /* Now Safe to enable MMU */
-    MMUEnable((unsigned int*)pageTable);
-}
 
 /*
  * Check command status
@@ -541,34 +452,34 @@ static void HSMMCSDIsr(void)
 static void EDMA3AINTCConfigure(void)
 {
     /* Initializing the ARM Interrupt Controller. */
-    IntAINTCInit();
+	IntControllerInit();
 
     /* Registering EDMA3 Channel Controller transfer completion interrupt.  */
-    IntRegister(EDMA_COMPLTN_INT_NUM, Edma3CompletionIsr);
+	IntRegister(EDMA_COMPLTN_INT_NUM, Edma3CompletionIsr);
 
     /* Setting the priority for EDMA3CC completion interrupt in AINTC. */
-    IntPrioritySet(EDMA_COMPLTN_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
+   // IntPrioritySet(EDMA_COMPLTN_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
 
     /* Registering EDMA3 Channel Controller Error Interrupt. */
     IntRegister(EDMA_ERROR_INT_NUM, Edma3CCErrorIsr);
 
     /* Setting the priority for EDMA3CC Error interrupt in AINTC. */
-    IntPrioritySet(EDMA_ERROR_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
+   // IntPrioritySet(EDMA_ERROR_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
 
     /* Enabling the EDMA3CC completion interrupt in AINTC. */
-    IntSystemEnable(EDMA_COMPLTN_INT_NUM);
+    IntHandlerEnable(EDMA_COMPLTN_INT_NUM);
 
     /* Enabling the EDMA3CC Error interrupt in AINTC. */
-    IntSystemEnable(EDMA_ERROR_INT_NUM);
+    IntHandlerEnable(EDMA_ERROR_INT_NUM);
 
     /* Registering HSMMC Interrupt handler */
     IntRegister(MMCSD_INT_NUM, HSMMCSDIsr);
 
     /* Setting the priority for EDMA3CC completion interrupt in AINTC. */
-    IntPrioritySet(MMCSD_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
+   // IntPrioritySet(MMCSD_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
 
     /* Enabling the HSMMC interrupt in AINTC. */
-    IntSystemEnable(MMCSD_INT_NUM);
+    IntHandlerEnable(MMCSD_INT_NUM);
 
     /* Enabling IRQ in CPSR of ARM processor. */
     IntMasterIRQEnable();
@@ -647,10 +558,22 @@ static void HSMMCSDControllerSetup(void)
 }
 
 
-int main(void)
+void startFileSystem(void)
 {
     volatile unsigned int i = 0;
     volatile unsigned int initFlg = 1;
+
+
+
+    /* Initialize console for communication with the Host Machine */
+       ConsoleUtilsInit();
+
+       /*
+       ** Select the console type based on compile time check
+       ** Note: This example is not fully complaint to semihosting. It is
+       **       recommended to use Uart console interface only.
+       */
+       ConsoleUtilsSetType(CONSOLE_UART);
 
 
     /* Configure the EDMA clocks. */
@@ -665,7 +588,7 @@ int main(void)
     /* Enable module clock for HSMMCSD. */
     HSMMCSDModuleClkConfig();
 
-    DelayTimerSetup();
+    DelayTimerSetup(); //TODO: Brauchen wier das?
 
 
     /* Basic controller initializations */
@@ -686,7 +609,7 @@ int main(void)
                 initFlg = 0;
                 Cmd_help(0, NULL);
             }
-            HSMMCSDFsProcessCmdLine();
+            HSMMCSDFsProcessCmdLine(); //TODO: Implementieren
         }
         else
         {

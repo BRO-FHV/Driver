@@ -147,5 +147,5 @@ void IntUnRegister(uint32_t intNum);
 void IntUnResetRegister(uint32_t intNum);
 void IntIRQHandler();
 uint32_t IntActiveIrqNumGet(void);
-
+void IntMasterIRQEnable(void);
 #endif /* INTERRUPT_H_ */

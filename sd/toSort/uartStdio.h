@@ -1,11 +1,8 @@
 /**
- * \file   consoleUtils.h
+ * \file   uartStdio.h
  *
- * \brief  This file contains the prototypes of the generic Console
- *         utility functions defined in utils/consoleUtils.c which allow
- *         user to configure the console type and redirect the I/O
- *         operations to the selected console Type.
- *
+ * \brief  This file contains the prototypes of the functions present in
+ *         utils/src/uartStdio.c
  */
 
 /*
@@ -42,32 +39,42 @@
 *
 */
 
-#ifndef _CONSOLEUTILS_H_
-#define _CONSOLEUTILS_H_
+
+#ifndef _UARTSTDIO_H_
+#define _UARTSTDIO_H_
+
+#include <stdarg.h>
+#include "misc.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-enum consoleUtilsType
-{
-    CONSOLE_UART = 0,
-    CONSOLE_DEBUGGER,
-    CONSOLE_MAXTYPE
-};
+/****************************************************************************
+**                    MACRO DEFINITIONS
+****************************************************************************/
 
 /****************************************************************************
 **                    FUNCTION PROTOTYPES
 ****************************************************************************/
 
-extern void ConsoleUtilsInit();
-extern void ConsoleUtilsSetType(enum consoleUtilsType consoleFlag);
-extern void ConsoleUtilsPrintf(const char *string, ...);
-extern int ConsoleUtilsScanf(const char *format, ...);
-extern char*  ConsoleUtilsGets(char *rxBuffer, int size);
-extern void ConsoleUtilsPuts(char *string, int size);
-extern void ConsoleUtilsPutChar(unsigned char byte);
-extern unsigned char ConsoleUtilsGetChar(void);
+extern unsigned int UARTPuts(char *pTxBuffer, int numBytesToWrite);
+extern char*  UARTGets(char *pRxBuffer, int numBytesToRead);
+extern unsigned int UARTwrite(const char *pcBuf, unsigned int len);
+extern void UARTPutc(unsigned char byteTx);
+extern unsigned char UARTGetc(void);
+extern void UARTStdioInit(void);
+extern int UARTScanf(const char *format, va_list vaArg);
+extern void UARTPrintf(const char *string, va_list vaArg);
+
+/*****************************************************************************
+**                      DEPRECATED API DECLARATIONS
+******************************************************************************/
+DEPRECATED(extern void UARTPutHexNum(unsigned int hexValue));
+DEPRECATED(extern unsigned int UARTGetHexNum(void));
+DEPRECATED(extern void UARTPutNum(int value));
+DEPRECATED(extern int UARTGetNum(void));
+DEPRECATED(extern void UARTprintf(const char *pcString, ...));
 
 #ifdef __cplusplus
 }

@@ -42,8 +42,7 @@
 
 #include "mmcsd_proto.h"
 #include "string.h"
-#include "uartStdio.h"
-#include "cache.h"
+//#include "uartStdio.h"
 
 #define DATA_RESPONSE_WIDTH       (SOC_CACHELINE_SIZE)
 
@@ -201,7 +200,7 @@ unsigned int MMCSDTranSpeedSet(mmcsdCtrlInfo *ctrl)
     }
 
     /* Invalidate the data cache. */
-    CacheDataInvalidateBuff((unsigned int) dataBuffer, DATA_RESPONSE_WIDTH);
+   // CacheDataInvalidateBuff((unsigned int) dataBuffer, DATA_RESPONSE_WIDTH);
 
     speed = card->tranSpeed;
 
@@ -557,7 +556,7 @@ unsigned int MMCSDCardInit(mmcsdCtrlInfo *ctrl)
         }
 
         /* Invalidate the data cache. */
-        CacheDataInvalidateBuff((unsigned int)dataBuffer, DATA_RESPONSE_WIDTH);
+       // CacheDataInvalidateBuff((unsigned int)dataBuffer, DATA_RESPONSE_WIDTH);
 
         card->raw_scr[0] = (dataBuffer[3] << 24) | (dataBuffer[2] << 16) | \
 		                   (dataBuffer[1] << 8) | (dataBuffer[0]);
@@ -608,7 +607,7 @@ unsigned int MMCSDWriteCmdSend(mmcsdCtrlInfo *ctrl, void *ptr, unsigned int bloc
     }
 
     /* Clean the data cache. */
-    CacheDataCleanBuff((unsigned int) ptr, (512 * nblks));
+  //  CacheDataCleanBuff((unsigned int) ptr, (512 * nblks));
 
     ctrl->xferSetup(ctrl, 0, ptr, 512, nblks);
 
@@ -728,7 +727,7 @@ unsigned int MMCSDReadCmdSend(mmcsdCtrlInfo *ctrl, void *ptr, unsigned int block
     }
 
     /* Invalidate the data cache. */
-    CacheDataInvalidateBuff((unsigned int) ptr, (512 * nblks));
+//    CacheDataInvalidateBuff((unsigned int) ptr, (512 * nblks));
 
     return 1;
 }

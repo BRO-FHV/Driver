@@ -43,7 +43,7 @@
 #ifndef __HS_MMCSD_H__
 #define __HS_MMCSD_H__
 
-#include "hw_hs_mmcsd.h"
+#include "sd/hw_hs_mmcsd.h"
 #include "hw_types.h"
 
 #ifdef __cplusplus
