@@ -31,4 +31,13 @@ void ConsoleEnable(uint32_t baseAddr);
  */
 void ConsoleLog(char sender[], char * message);
 
+/**
+ * \brief Sends a log message with variable amount of arguments
+ *
+ * \param sender	sender of message
+ * \param message	message to send
+ * \param ...		argument list
+ */
+void ConsoleLogf(char sender[], const char *message, ...);
+
 #endif /* DEBUG_H_ */

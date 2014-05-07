@@ -42,6 +42,7 @@
 #include "ff.h"
 #include "cmdline.h"
 #include "hs_mmcsd.h"
+#include "../../console/dr_console.h"
 //#include "consoleUtils.h"
 //#include "uartStdio.h"
 #include "string.h"
@@ -270,144 +271,6 @@ extern unsigned int HSMMCSDCardPresent(mmcsdCtrlInfo *ctrl);
 
 extern int xmodemReceive(unsigned char *dest, int destsz);
 
-/*******************************************************************************
-**
-** This function reads a line of text from the UART console. 
-**
-*******************************************************************************/
-void
-ReadLine(void)
-{
-    unsigned long ulIdx;
-    unsigned char ucChar;
-
-    /*
-    ** Start reading at the beginning of the command buffer and print a prompt.
-    */
-    g_cCmdBuf[0] = '\0';
-    ulIdx = 0;
-
-    /*
-    ** Loop forever.  This loop will be explicitly broken out of when the line
-    ** has been fully read.
-    */
-    while(1)
-    {
-        /*
-        ** Attempt to open the directory.
-        */
-        if((HSMMCSDCardPresent(&ctrlInfo)) == 1)
-        {
-            if(g_sCState == 0)
-            {
-                if(f_opendir(&g_sDirObject, g_cCwdBuf) != FR_OK)
-                {
-                    ConsoleUtilsPrintf("\nFailed to open directory.\n");
-                    g_sCState = 0;
-                    g_sPState = 0;
-                    g_cCmdBuf[0] = '\0';
-                    return;
-                }
-                else
-                {
-                    g_sCState = 1;
-                }
-            }
-
-            if (g_sCState != g_sPState)
-            {
-                if (g_sCState == 0)
-                {
-                    ConsoleUtilsPrintf("%s>", "UNKNOWN");
-                    g_sPState = 0;
-
-                    return;
-                }
-                else
-                {
-                    ConsoleUtilsPrintf("%s> %s", g_cCwdBuf, g_cCmdBuf);
-                    g_sPState = 1;
-                }
-            }
-        }
-        else
-        {
-            g_sCState = 0;
-            g_sPState = 0;
-            g_cCmdBuf[0] = '\0';
-            return;
-        }
-
-        /*
-        ** Loop while there are characters that have been received from the
-        ** UART.
-        */
-        while(UARTCharsAvail(SOC_UART_0_REGS))
-        {
-            /*
-            ** Read the next character from the UART.
-            */
-            ucChar = UARTGetc();
-
-            /*
-            ** See if this character is a backspace and there is at least one
-            ** character in the input line.
-            */
-            if((ucChar == '\b') && (ulIdx != 0))
-            {
-                /*
-                ** Erase the lsat character from the input line.
-                */
-                ConsoleUtilsPrintf("\b \b");
-                ulIdx--;
-                g_cCmdBuf[ulIdx] = '\0';
-            }
-
-            /*
-            ** See if this character is a newline.
-            */
-            else if((ucChar == '\r') || (ucChar == '\n'))
-            {
-                /*
-                ** Return to the caller.
-                */
-                ConsoleUtilsPrintf("\n");
-                return;
-            }
-
-            /*
-            ** See if this character is an escape or Ctrl-U.
-            */
-            else if((ucChar == 0x1b) || (ucChar == 0x15))
-            {
-                /*
-                ** Erase all characters in the input buffer.
-                */
-                while(ulIdx)
-                {
-                    ConsoleUtilsPrintf("\b \b");
-                    ulIdx--;
-                }
-                g_cCmdBuf[0] = '\0';
-            }
-
-            /*
-            ** See if this is a printable ASCII character.
-            */
-            else if((ucChar >= ' ') && (ucChar <= '~') &&
-                    (ulIdx < (sizeof(g_cCmdBuf) - 1)))
-            {
-                /*
-                ** Add this character to the input buffer.
-                */
-                g_cCmdBuf[ulIdx++] = ucChar;
-                g_cCmdBuf[ulIdx] = '\0';
-                ConsoleUtilsPrintf("%c", ucChar);
-            }
-        }
-    }
-}
-
 
 /*****************************************************************************
 This function returns a string representation of an error code that was
@@ -469,7 +332,7 @@ Cmd_rm(int argc, char *argv[])
         */
         if(strlen(argv[1]) + 1 > sizeof(g_cCwdBuf))
         {
-            ConsoleUtilsPrintf("Resulting path name is too long\n");
+        	ConsoleLogf(SOC_UART_0_REGS, "Resulting path name is too long\n");
             return(0);
         }
 
@@ -487,7 +350,7 @@ Cmd_rm(int argc, char *argv[])
                ((g_cCwdBuf[strlen(argv[1])] == '/') ||
                 (g_cCwdBuf[strlen(argv[1])] == '\0')))
             {
-                ConsoleUtilsPrintf("Cannot delete parent directory \n");
+            	ConsoleLogf(SOC_UART_0_REGS, "Cannot delete parent directory \n");
                 return(0);
             }
 
@@ -565,7 +428,7 @@ Cmd_rm(int argc, char *argv[])
     */
     if(fresult != FR_OK)
     {
-        ConsoleUtilsPrintf("rm: %s\n", g_cCwdBuf);
+    	ConsoleLogf(SOC_UART_0_REGS, "rm: %s\n", g_cCwdBuf);
         return(fresult);
     }
 
@@ -656,7 +519,7 @@ Cmd_ls(int argc, char *argv[])
         ** Print the entry information on a single line with formatting to show
         ** the attributes, date, time, size, and name.
         */
-        ConsoleUtilsPrintf("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
+        ConsoleLogf(SOC_UART_0_REGS, "%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
                            (g_sFileInfo.fattrib & AM_DIR) ? 'D' : '-',
                            (g_sFileInfo.fattrib & AM_RDO) ? 'R' : '-',
                            (g_sFileInfo.fattrib & AM_HID) ? 'H' : '-',
@@ -693,7 +556,7 @@ Cmd_ls(int argc, char *argv[])
     /*
     ** Display the amount of free space that was calculated.
     */
-    ConsoleUtilsPrintf(", %10uK bytes free\n",
+    ConsoleLogf(SOC_UART_0_REGS, ", %10uK bytes free\n",
                        ulTotalSize * pFatFs->sects_clust / 2);
 
     /*
@@ -732,7 +595,7 @@ Cmd_mkdir(int argc, char *argv[])
         */
         if(strlen(argv[1]) + 1 > sizeof(g_cCwdBuf))
         {
-            ConsoleUtilsPrintf("Resulting path name is too long\n");
+        	ConsoleLogf(SOC_UART_0_REGS, "Resulting path name is too long\n");
             return(0);
         }
 
@@ -765,7 +628,7 @@ Cmd_mkdir(int argc, char *argv[])
         */
         if(strlen(g_cTmpBuf) + strlen(argv[1]) + 1 + 1 > sizeof(g_cCwdBuf))
         {
-            ConsoleUtilsPrintf("Resulting path name is too long\n");
+        	ConsoleLogf(SOC_UART_0_REGS, "Resulting path name is too long\n");
             return(0);
         }
 
@@ -800,7 +663,7 @@ Cmd_mkdir(int argc, char *argv[])
     */
     if(fresult != FR_OK)
     {
-        ConsoleUtilsPrintf("mkdir: %s\n", g_cTmpBuf);
+    	ConsoleLogf(SOC_UART_0_REGS, "mkdir: %s\n", g_cTmpBuf);
         return(fresult);
     }
 
@@ -853,7 +716,7 @@ Cmd_cd(int argc, char *argv[])
         */
         if(strlen(argv[1]) + 1 > sizeof(g_cCwdBuf))
         {
-            ConsoleUtilsPrintf("Resulting path name is too long\n");
+        	ConsoleLogf(SOC_UART_0_REGS, "Resulting path name is too long\n");
             return(0);
         }
 
@@ -947,7 +810,7 @@ Cmd_cd(int argc, char *argv[])
     */
     if(fresult != FR_OK)
     {
-        ConsoleUtilsPrintf("cd: %s\n", g_cTmpBuf);
+    	ConsoleLogf(SOC_UART_0_REGS, "cd: %s\n", g_cTmpBuf);
         return(fresult);
     }
 
@@ -977,7 +840,7 @@ Cmd_pwd(int argc, char *argv[])
     /*
     ** Print the CWD to the console.
     */
-    ConsoleUtilsPrintf("%s\n", g_cCwdBuf);
+	ConsoleLogf(SOC_UART_0_REGS, "%s\n", g_cCwdBuf);
 
     return(0);
 }
@@ -1022,7 +885,7 @@ Cmd_cat(int argc, char *argv[])
     */
     if(strlen(g_cCwdBuf) + strlen(argv[1]) + 1 + 1 > sizeof(g_cTmpBuf))
     {
-        ConsoleUtilsPrintf("Resulting path name is too long\n");
+    	ConsoleLogf(SOC_UART_0_REGS, "Resulting path name is too long\n");
         return(0);
     }
 
@@ -1062,14 +925,14 @@ Cmd_cat(int argc, char *argv[])
 
     if(!strcmp(g_cDataBuf, "dev.UART"))
     {
-        ConsoleUtilsPrintf("\nPlease provide text file (Max of ");
-        ConsoleUtilsPrintf("%d Kbytes):\n", (DATA_BUF_SIZE / (2* 512)));
+    	ConsoleLogf(SOC_UART_0_REGS, "\nPlease provide text file (Max of ");
+    	ConsoleLogf(SOC_UART_0_REGS, "%d Kbytes):\n", (DATA_BUF_SIZE / (2* 512)));
 
         usBytesRead = xmodemReceive((unsigned char*)g_cDataBuf, DATA_BUF_SIZE);
 
         if(0 >= usBytesRead)
         {
-            ConsoleUtilsPrintf("\nXmodem receive error\n");
+        	ConsoleLogf(SOC_UART_0_REGS, "\nXmodem receive error\n");
             return(usBytesRead);
         }
 
@@ -1077,12 +940,12 @@ Cmd_cat(int argc, char *argv[])
         {
             unsigned int iter = 0;
 
-            ConsoleUtilsPrintf("\n No. of iterations: ");
-            ConsoleUtilsScanf("%d \n", &iter);
+            ConsoleLogf(SOC_UART_0_REGS, "\n No. of iterations: ");
+            ConsoleLogf(SOC_UART_0_REGS, "%d \n", &iter);
 
             if(0 >= iter)
             {
-                ConsoleUtilsPrintf("\nERROR: Invalid entry!!\n");
+            	ConsoleLogf(SOC_UART_0_REGS, "\nERROR: Invalid entry!!\n");
                 return(iter);
             }
 
@@ -1132,7 +995,7 @@ Cmd_cat(int argc, char *argv[])
 
                 if(fresultWrite != FR_OK)
                 {
-                    ConsoleUtilsPrintf("\n");
+                	ConsoleLogf(SOC_UART_0_REGS, "\n");
                     return(fresultWrite);
                 }
 
@@ -1155,7 +1018,7 @@ Cmd_cat(int argc, char *argv[])
             /*
             ** Print the last chunk of the file that was received.
             */
-            ConsoleUtilsPrintf("%s", g_cDataBuf);
+            ConsoleLogf(SOC_UART_0_REGS, "%s", g_cDataBuf);
         }
     }
     /*
@@ -1235,7 +1098,7 @@ Cmd_cat(int argc, char *argv[])
             */
             if(fresultRead != FR_OK)
             {
-                ConsoleUtilsPrintf("\n");
+            	ConsoleLogf(SOC_UART_0_REGS, "\n");
                 return(fresultRead);
             }
 
@@ -1285,7 +1148,7 @@ Cmd_cat(int argc, char *argv[])
                 /*
                 ** Print the last chunk of the file that was received.
                 */
-                ConsoleUtilsPrintf("%s", g_cDataBuf);
+                ConsoleLogf(SOC_UART_0_REGS, "%s", g_cDataBuf);
             }
 
             /*
@@ -1300,14 +1163,14 @@ Cmd_cat(int argc, char *argv[])
         /*
         ** Print card bus-width, transfer speed.
         */
-        ConsoleUtilsPrintf(" ************ MMCSD Settings ************ \r\n");
+    ConsoleLogf(SOC_UART_0_REGS, " ************ MMCSD Settings ************ \r\n");
 
-        ConsoleUtilsPrintf(" BUS WIDTH (BIT)             : %d \r\n",
+    ConsoleLogf(SOC_UART_0_REGS, " BUS WIDTH (BIT)             : %d \r\n",
                            GET_SD_CARD_BUSWIDTH(sdCard));
-        ConsoleUtilsPrintf(" TRANSFER SPEED (MHz)        : %d \r\n",
+    ConsoleLogf(SOC_UART_0_REGS, " TRANSFER SPEED (MHz)        : %d \r\n",
                            GET_SD_CARD_FRE(sdCard));
 
-        ConsoleUtilsPrintf(" **************************************** \r\n");
+    ConsoleLogf(SOC_UART_0_REGS, " **************************************** \r\n");
 
         /*
         ** Compute and print performance for file read.
@@ -1326,14 +1189,14 @@ Cmd_cat(int argc, char *argv[])
                 thrPutRead = 0;
             }
 
-            ConsoleUtilsPrintf(" ***** MMCSD File Read Performance ***** \r\n");
-            ConsoleUtilsPrintf(" READ BUFFER SIZE (BYTES)    : %d \r\n",
+            ConsoleLogf(SOC_UART_0_REGS, " ***** MMCSD File Read Performance ***** \r\n");
+            ConsoleLogf(SOC_UART_0_REGS, " READ BUFFER SIZE (BYTES)    : %d \r\n",
                                DATA_BUF_SIZE);
-            ConsoleUtilsPrintf(" TOTAL BYTES TRANSFERRED     : %d \r\n",
+            ConsoleLogf(SOC_UART_0_REGS, " TOTAL BYTES TRANSFERRED     : %d \r\n",
                                totalBytesRead);
-            ConsoleUtilsPrintf(" TIME TAKEN (IN MILLISECS)   : %d \r\n",
+            ConsoleLogf(SOC_UART_0_REGS, " TIME TAKEN (IN MILLISECS)   : %d \r\n",
                                timeRead);
-            ConsoleUtilsPrintf(" THROUGHPUT (BYTES / SECS )  : %d \r\n",
+            ConsoleLogf(SOC_UART_0_REGS, " THROUGHPUT (BYTES / SECS )  : %d \r\n",
                                thrPutRead);
         }
 
@@ -1354,18 +1217,18 @@ Cmd_cat(int argc, char *argv[])
                 thrPutWrite = 0;
             }
 
-            ConsoleUtilsPrintf(" ***** MMCSD File Write Performance **** \r\n");
-            ConsoleUtilsPrintf(" WRITE BUFFER SIZE (BYTES)   : %d \r\n",
+            ConsoleLogf(SOC_UART_0_REGS, " ***** MMCSD File Write Performance **** \r\n");
+            ConsoleLogf(SOC_UART_0_REGS, " WRITE BUFFER SIZE (BYTES)   : %d \r\n",
                                DATA_BUF_SIZE);
-            ConsoleUtilsPrintf(" TOTAL BYTES TRANSFERRED     : %d \r\n",
+            ConsoleLogf(SOC_UART_0_REGS, " TOTAL BYTES TRANSFERRED     : %d \r\n",
                                totalBytesWrite);
-            ConsoleUtilsPrintf(" TIME TAKEN (IN MILLISECS)   : %d \r\n",
+            ConsoleLogf(SOC_UART_0_REGS, " TIME TAKEN (IN MILLISECS)   : %d \r\n",
                                timeWrite);
-            ConsoleUtilsPrintf(" THROUGHPUT (BYTES / SECS )  : %d \r\n",
+            ConsoleLogf(SOC_UART_0_REGS, " THROUGHPUT (BYTES / SECS )  : %d \r\n",
                                thrPutWrite);
         }
 
-        ConsoleUtilsPrintf(" **************************************** \r\n");
+        ConsoleLogf(SOC_UART_0_REGS, " **************************************** \r\n");
 #endif
 
         /*
@@ -1420,8 +1283,8 @@ Cmd_help(int argc, char *argv[])
     /*
     ** Print some header text.
     */
-    ConsoleUtilsPrintf("\nAvailable commands\n");
-    ConsoleUtilsPrintf("------------------\n");
+    ConsoleLogf(SOC_UART_0_REGS, "\nAvailable commands\n");
+    ConsoleLogf(SOC_UART_0_REGS, "------------------\n");
 
     /*
     ** Point at the beginning of the command table.
@@ -1437,7 +1300,7 @@ Cmd_help(int argc, char *argv[])
         /*
         ** Print the command name and the brief description.
         */
-        ConsoleUtilsPrintf("%s%s\n", pEntry->pcCmd, pEntry->pcHelp);
+    	ConsoleLogf(SOC_UART_0_REGS, "%s%s\n", pEntry->pcCmd, pEntry->pcHelp);
 
         /*
         ** Advance to the next entry in the table.
@@ -1514,7 +1377,7 @@ void HSMMCSDFsProcessCmdLine(void)
     //
     if(iStatus == CMDLINE_BAD_CMD)
     {
-        ConsoleUtilsPrintf("Bad command!\n");
+    	ConsoleLogf(SOC_UART_0_REGS, "Bad command!\n");
     }
 
     //
@@ -1522,7 +1385,7 @@ void HSMMCSDFsProcessCmdLine(void)
     //
     else if(iStatus == CMDLINE_TOO_MANY_ARGS)
     {
-        ConsoleUtilsPrintf("Too many arguments for command processor!\n");
+    	ConsoleLogf(SOC_UART_0_REGS, "Too many arguments for command processor!\n");
     }
 
     //
@@ -1531,10 +1394,10 @@ void HSMMCSDFsProcessCmdLine(void)
     //
     else if(iStatus != 0)
     {
-        ConsoleUtilsPrintf("Command returned error code %s\n",
+    	ConsoleLogf(SOC_UART_0_REGS, "Command returned error code %s\n",
         StringFromFresult((FRESULT)iStatus));
     }
 
     g_cCmdBuf[0] = '\0';
-    ConsoleUtilsPrintf("%s> %s", g_cCwdBuf, g_cCmdBuf);
+    ConsoleLogf(SOC_UART_0_REGS, "%s> %s", g_cCwdBuf, g_cCmdBuf);
 }

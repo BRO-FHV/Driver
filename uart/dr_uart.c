@@ -254,275 +254,290 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 /**
  * \brief sends a message with a variable amount of argmunents over uart module identified by base address
  */
-uint32_t UartWritef(uint32_t baseAddr, va_list vaArg) {
+uint32_t UartWritef(uint32_t baseAddr,va_list vaArg) {
 {
 	unsigned int idx, pos, count, base, neg;
 	char *pcStr, pcBuf[16], cFill;
-	va_list vaArgP;
 	int value;
 
-	/* Start the varargs processing. */
-	va_start(vaArgP, pcString);
-
 	/* Loop while there are more characters in the string. */
-	while (*pcString) {
+	while(*string)
+	{
 		/* Find the first non-% character, or the end of the string. */
-		for (idx = 0; (pcString[idx] != '%') && (pcString[idx] != '\0');
-				idx++) {
+		for(idx = 0u; (string[idx] != '%') && (string[idx] != '\0'); idx++)
+		{
 		}
 
 		/* Write this portion of the string. */
-		UartWrite(baseAddr, pBufferpcString, idx);
+		UartWrite(SOC_UART_0_REGS, string, idx);
 
 		/* Skip the portion of the string that was written. */
-		pcString += idx;
+		string += idx;
 
 		/* See if the next character is a %. */
-		if (*pcString == '%') {
+		if(*string == '%')
+		{
 			/* Skip the %. */
-			pcString++;
+			string++;
 
 			/*
-			 ** Set the digit count to zero, and the fill character to space
-			 ** (i.e. to the defaults).
-			 */
-			count = 0;
+			** Set the digit count to zero, and the fill character to space
+			** (i.e. to the defaults).
+			*/
+			count = 0u;
 			cFill = ' ';
 
 			/*
-			 ** It may be necessary to get back here to process more characters.
-			 ** Goto's aren't pretty, but effective. I feel extremely dirty for
-			 ** using not one but two of the beasts.
-			 */
-			again:
+			** It may be necessary to get back here to process more characters.
+			** Goto's aren't pretty, but effective. I feel extremely dirty for
+			** using not one but two of the beasts.
+			*/
+again:
 
 			/* Determine how to handle the next character. */
-			switch (*pcString++) {
-			/* Handle the digit characters. */
-			case '0':
-			case '1':
-			case '2':
-			case '3':
-			case '4':
-			case '5':
-			case '6':
-			case '7':
-			case '8':
-			case '9': {
-				/*
-				 ** If this is a zero, and it is the first digit, then the
-				 ** fill character is a zero instead of a space.
-				 */
-				if ((pcString[-1] == '0') && (count == 0)) {
-					cFill = '0';
+			switch(*string++)
+			{
+				/* Handle the digit characters. */
+				case '0':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
+				case '8':
+				case '9':
+				{
+					/*
+					** If this is a zero, and it is the first digit, then the
+					** fill character is a zero instead of a space.
+					*/
+					if((string[-1] == '0') && (count == 0))
+					{
+						cFill = '0';
+					}
+
+					/* Update the digit count. */
+					count *= 10;
+					count += string[-1] - '0';
+
+					/* Get the next character. */
+					goto again;
 				}
-
-				/* Update the digit count. */
-				count *= 10;
-				count += pcString[-1] - '0';
-
-				/* Get the next character. */
-				goto again;
-			}
 
 				/* Handle the %c command. */
-			case 'c': {
-				/* Get the value from the varargs. */
-				value = va_arg(vaArgP, unsigned int);
+				case 'c':
+				{
+					/* Get the value from the varargs. */
+					value = va_arg(vaArg, unsigned int);
 
-				/* Print out the character. */
-				UartWrite(baseAddr, (char *) &value, 1);
+					/* Print out the character. */
+					UartWrite(SOC_UART_0_REGS,(char *)&value, 1);
 
-				/* This command has been handled. */
-				break;
-			}
+					/* This command has been handled. */
+					break;
+				}
 
 				/* Handle the %d command. */
-			case 'd': {
-				/* Get the value from the varargs. */
-				value = va_arg(vaArgP, unsigned int);
+				case 'd':
+				{
+					/* Get the value from the varargs. */
+					value = va_arg(vaArg, unsigned int);
 
-				/* Reset the buffer position. */
-				pos = 0;
-
-				/*
-				 ** If the value is negative, make it positive and indicate
-				 ** that a minus sign is needed.
-				 */
-				if ((int) value < 0) {
-					/* Make the value positive. */
-					value = -(int) value;
-
-					/* Indicate that the value is negative. */
-					neg = 1;
-				} else {
-					/* Indicate that the value is positive so that a minus
-					 * sign isn't inserted. */
-					neg = 0;
-				}
-
-				/* Set the base to 10. */
-				base = 10;
-
-				/* Convert the value to ASCII. */
-				goto convert;
-			}
-
-				/* Handle the %s command. */
-			case 's': {
-				/* Get the string pointer from the varargs. */
-				pcStr = va_arg(vaArgP, char *);
-
-				/* Determine the length of the string. */
-				for (idx = 0; pcStr[idx] != '\0'; idx++) {
-				}
-
-				/* Write the string. */
-				UartWrite(baseAddr, pcStr, idx);
-
-				/* Write any required padding spaces */
-				if (count > idx) {
-					count -= idx;
-					while (count--) {
-						UartWrite(baseAddr, (const char *) " ", 1);
-					}
-				}
-				/* This command has been handled. */
-				break;
-			}
-
-				/* Handle the %u command. */
-			case 'u': {
-				/* Get the value from the varargs. */
-				value = va_arg(vaArgP, unsigned int);
-
-				/* Reset the buffer position. */
-				pos = 0;
-
-				/* Set the base to 10. */
-				base = 10;
-
-				/*
-				 ** Indicate that the value is positive so that a minus sign
-				 ** isn't inserted.
-				 */
-				neg = 0;
-
-				/* Convert the value to ASCII. */
-				goto convert;
-			}
-
-				/*
-				 ** Handle the %x and %X commands.  Note that they are treated
-				 ** identically; i.e. %X will use lower case letters for a-f
-				 ** instead of the upper case letters is should use.  We also
-				 ** alias %p to %x.
-				 */
-			case 'x':
-			case 'X':
-			case 'p': {
-				/* Get the value from the varargs. */
-				value = va_arg(vaArgP, unsigned int);
-
-				/* Reset the buffer position. */
-				pos = 0;
-
-				/* Set the base to 16. */
-				base = 16;
-
-				/*
-				 ** Indicate that the value is positive so that a minus sign
-				 ** isn't inserted.
-				 */
-				neg = 0;
-
-				/*
-				 ** Determine the number of digits in the string version of
-				 ** the value.
-				 */
-				convert: for (idx = 1;
-						(((idx * base) <= value)
-								&& (((idx * base) / base) == idx)); idx *=
-								base, count--) {
-				}
-
-				/*
-				 ** If the value is negative, reduce the count of padding
-				 ** characters needed.
-				 */
-				if (neg) {
-					count--;
-				}
-
-				/*
-				 ** If the value is negative and the value is padded with
-				 ** zeros, then place the minus sign before the padding.
-				 */
-				if (neg && (cFill == '0')) {
-					/* Place the minus sign in the output buffer. */
-					pcBuf[pos++] = '-';
+					/* Reset the buffer position. */
+					pos = 0u;
 
 					/*
-					 ** The minus sign has been placed, so turn off the
-					 ** negative flag.
-					 */
-					neg = 0;
-				}
+					** If the value is negative, make it positive and indicate
+					** that a minus sign is needed.
+					*/
+					if((int)value < 0)
+					{
+						/* Make the value positive. */
+						value = -(int)value;
 
-				/*
-				 ** Provide additional padding at the beginning of the
-				 ** string conversion if needed.
-				 */
-				if ((count > 1) && (count < 16)) {
-					for (count--; count; count--) {
-						pcBuf[pos++] = cFill;
+						/* Indicate that the value is negative. */
+						neg = 1u;
 					}
+					else
+					{
+						/*
+						** Indicate that the value is positive so that a minus
+						** sign isn't inserted.
+						*/
+						neg = 0u;
+					}
+
+					/* Set the base to 10. */
+					base = 10u;
+
+					/* Convert the value to ASCII. */
+					goto convert;
+				}
+
+				/* Handle the %s command. */
+				case 's':
+				{
+					/* Get the string pointer from the varargs. */
+					pcStr = va_arg(vaArg, char *);
+
+					/* Determine the length of the string. */
+					for(idx = 0u; pcStr[idx] != '\0'; idx++)
+					{
+					}
+
+					/* Write the string. */
+					UartWrite(SOC_UART_0_REGS,pcStr, idx);
+
+					/* Write any required padding spaces */
+					if(count > idx)
+					{
+						count -= idx;
+						while(count--)
+						{
+							UartWrite(SOC_UART_0_REGS,(const char *)" ", 1);
+						}
+					}
+					/* This command has been handled. */
+					break;
+				}
+
+				/* Handle the %u command. */
+				case 'u':
+				{
+					/* Get the value from the varargs. */
+					value = va_arg(vaArg, unsigned int);
+
+					/* Reset the buffer position. */
+					pos = 0u;
+
+					/* Set the base to 10. */
+					base = 10u;
+
+					/* Indicate that the value is positive so that a minus sign
+					 * isn't inserted. */
+					neg = 0u;
+
+					/* Convert the value to ASCII. */
+					goto convert;
 				}
 
 				/*
-				 ** If the value is negative, then place the minus sign
-				 ** before the number.
-				 */
-				if (neg) {
-					/* Place the minus sign in the output buffer. */
-					pcBuf[pos++] = '-';
+				** Handle the %x and %X commands.  Note that they are treated
+				** identically; i.e. %X will use lower case letters for a-f
+				** instead of the upper case letters it should use.  We also
+				** alias %p to %x.
+				*/
+				case 'x':
+				case 'X':
+				case 'p':
+				{
+					/* Get the value from the varargs. */
+					value = va_arg(vaArg, unsigned int);
+
+					/* Reset the buffer position. */
+					pos = 0u;
+
+					/* Set the base to 16. */
+					base = 16u;
+
+					/*
+					** Indicate that the value is positive so that a minus sign
+					** isn't inserted.
+					*/
+					neg = 0u;
+
+					/*
+					** Determine the number of digits in the string version of
+					** the value.
+					*/
+convert:
+					for(idx = 1;
+						(((idx * base) <= value) &&
+						 (((idx * base) / base) == idx));
+						idx *= base, count--)
+					{
+					}
+
+					/*
+					** If the value is negative, reduce the count of padding
+					** characters needed.
+					*/
+					if(neg)
+					{
+						count--;
+					}
+
+					/*
+					** If the value is negative and the value is padded with
+					** zeros, then place the minus sign before the padding.
+					*/
+					if(neg && (cFill == '0'))
+					{
+						/* Place the minus sign in the output buffer. */
+						pcBuf[pos++] = '-';
+
+						/*
+						** The minus sign has been placed, so turn off the
+						** negative flag.
+						*/
+						neg = 0u;
+					}
+
+					/* Provide additional padding at the beginning of the
+					 * string conversion if needed. */
+					if((count > 1) && (count < 16))
+					{
+						for(count--; count; count--)
+						{
+							pcBuf[pos++] = cFill;
+						}
+					}
+
+					/* If the value is negative, then place the minus sign
+					 * before the number. */
+					if(neg)
+					{
+						/* Place the minus sign in the output buffer. */
+						pcBuf[pos++] = '-';
+					}
+
+					/* Convert the value into a string. */
+					for(; idx; idx /= base)
+					{
+						pcBuf[pos++] = g_pcHex[(value / idx) % base];
+					}
+
+					/* Write the string. */
+					UARTwrite(pcBuf, pos);
+
+					/* This command has been handled. */
+					break;
 				}
-
-				/* Convert the value into a string. */
-				for (; idx; idx /= base) {
-					pcBuf[pos++] = g_pcHex[(value / idx) % base];
-				}
-
-				/* Write the string. */
-				UartWrite(baseAddr, pcBuf, pos);
-
-				/* This command has been handled. */
-				break;
-			}
 
 				/* Handle the %% command. */
-			case '%': {
-				/* Simply write a single %. */
-				UartWrite(baseAddr, pcString - 1, 1);
+				case '%':
+				{
+					/* Simply write a single %. */
+					UartWrite(SOC_UART_0_REGS,string - 1, 1);
 
-				/* This command has been handled. */
-				break;
-			}
+					/* This command has been handled. */
+					break;
+				}
 
 				/* Handle all other commands. */
-			default: {
-				/* Indicate an error. */
-				UartWrite(baseAddr, (const char *) "ERROR", 5);
+				default:
+				{
+					/* Indicate an error. */
+					UartWrite(SOC_UART_0_REGS,(const char *)"ERROR", 5);
 
-				/* This command has been handled. */
-				break;
-			}
+					/* This command has been handled. */
+					break;
+				}
 			}
 		}
 	}
-
-	/* End the varargs processing. */
-	va_end(vaArgP);
 }
 
 	/**
