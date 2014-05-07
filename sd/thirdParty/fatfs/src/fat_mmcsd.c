@@ -61,8 +61,9 @@ disk_initialize(
 
         if (status == 0)
         {
-            UARTPuts("\r\nCard Init Failed \r\n", -1);
-            
+        	const char * txt = "\r\nCard Init Failed \r\n";
+        	UartWrite(SOC_UART_0_REGS,txt, strlen(txt));
+
             return STA_NOINIT;
         }
         else
