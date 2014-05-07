@@ -48,6 +48,10 @@ static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
 static void UartDivisorLatchDisable(uint32_t baseAdd);
 static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState);
 
+/* A mapping from an integer between 0 and 15 to its ASCII character
+ * equivalent. */
+static const char * const g_pcHex = "0123456789abcdef";
+
 // write helper function
 static uint32_t UartWriteChunk(uint32_t baseAddr);
 
@@ -214,7 +218,7 @@ void UartIntDisable(uint32_t baseAddr, uint32_t intFlag) {
  *
  * \see uart_irda_cir.c::UARTFIFOWrite
  */
-uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
+uint32_t UartWrite(uint32_t baseAddr, const char *pBuffer, uint32_t numTxBytes) {
 	uint32_t numByteChunks = numTxBytes / NUM_TX_BYTES_PER_TRANS;
 	uint32_t remainBytes = numTxBytes % NUM_TX_BYTES_PER_TRANS;
 	uint32_t bIndex = numByteChunks;
@@ -254,8 +258,8 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 /**
  * \brief sends a message with a variable amount of argmunents over uart module identified by base address
  */
-uint32_t UartWritef(uint32_t baseAddr,va_list vaArg) {
-{
+uint32_t UartWritef(uint32_t baseAddr,const char* string, va_list vaArg) {
+
 	unsigned int idx, pos, count, base, neg;
 	char *pcStr, pcBuf[16], cFill;
 	int value;
@@ -396,7 +400,7 @@ again:
 						count -= idx;
 						while(count--)
 						{
-							UartWrite(SOC_UART_0_REGS,(const char *)" ", 1);
+							UartWrite(SOC_UART_0_REGS,(char *)" ", 1);
 						}
 					}
 					/* This command has been handled. */
@@ -510,7 +514,7 @@ convert:
 					}
 
 					/* Write the string. */
-					UARTwrite(pcBuf, pos);
+					UartWrite(SOC_UART_0_REGS,pcBuf, pos);
 
 					/* This command has been handled. */
 					break;
@@ -530,7 +534,7 @@ convert:
 				default:
 				{
 					/* Indicate an error. */
-					UartWrite(SOC_UART_0_REGS,(const char *)"ERROR", 5);
+					UartWrite(SOC_UART_0_REGS,(char *)"ERROR", 5);
 
 					/* This command has been handled. */
 					break;
