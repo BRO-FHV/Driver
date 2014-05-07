@@ -303,7 +303,7 @@ char UartCharGetNonBlocking(uint32_t baseAddr) {
 /**
  * \brief returns TRUE if available chars exists
  */
-tBoolean UartAvailable(unsigned int baseAddr) {
+Boolean UartAvailable(unsigned int baseAddr) {
 	uint32_t lcrRegValue = 0;
 	uint32_t retVal = 0;
 

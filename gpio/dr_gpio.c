@@ -145,6 +145,8 @@ void GPIOMultiplePinsWrite(unsigned int baseAdd,
 
     /* Clearing the specified output pins in GPIO_DATAOUT register. */
     reg32w(baseAdd , GPIO_CLEARDATAOUT, clrMask);
+
+
 }
 
 /**
