@@ -12,8 +12,6 @@
 #include "mmcsd_proto.h"
 #include "hs_mmcsdlib.h"
 #include "ff.h"
-#include "uartStdio.h"
-
 
 
 typedef struct _fatDevice

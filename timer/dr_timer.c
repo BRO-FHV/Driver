@@ -544,3 +544,33 @@ void ClockModuleEnableCore(uint32_t dpll_clksel_clk, uint32_t dpll_clksel_clk_cl
 	wait(!(reg32r(SOC_CM_PER_REGS, CM_PER_OCPWP_L3_CLKSTCTRL) & (CM_PER_OCPWP_L3_CLKSTCTRL_CLKACTIVITY_OCPWP_L3_GCLK | CM_PER_OCPWP_L3_CLKSTCTRL_CLKACTIVITY_OCPWP_L4_GCLK)));
 	wait(!(reg32r(SOC_CM_PER_REGS, CM_PER_L4LS_CLKSTCTRL) & (CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_L4LS_GCLK | per_clkactivity_gclk)));
 }
+
+
+/******************************************************************************
+**                      INTERNAL VARIABLE DEFINITIONS
+*******************************************************************************/
+static volatile unsigned int flagIsr = 1;
+
+/*
+** DMTimer Interrupt Service Routine.
+*/
+
+static void DMTimerIsr(void)
+{
+	TimerDisable(Timer_TIMER7);
+
+    flagIsr = TRUE;
+}
+
+void delay(unsigned int milliseconds)
+{
+	flagIsr = FALSE;
+	TimerConfiguration(Timer_TIMER7, milliseconds, DMTimerIsr);
+	TimerEnable(Timer_TIMER7);
+
+
+	  while(FALSE == flagIsr) ;
+
+}
+
+
