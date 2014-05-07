@@ -72,10 +72,10 @@ mmcsdCtrlInfo  ctrlInfo;
 /******************************************************************************
 **                      FUNCTION PROTOTYPES
 *******************************************************************************/
-extern void HSMMCSDFsMount(unsigned int driveNum, void *ptr);
+/*extern void HSMMCSDFsMount(unsigned int driveNum, void *ptr);
 extern void HSMMCSDFsProcessCmdLine(void);
 extern int Cmd_help(int argc, char *argv[]);
-
+*/
 /* EDMA callback function array */
 static void (*cb_Fxn[EDMA3_NUM_TCC]) (unsigned int tcc, unsigned int status);
 
@@ -566,14 +566,14 @@ void startFileSystem(void)
 
 
     /* Initialize console for communication with the Host Machine */
-       ConsoleUtilsInit();
+     //  ConsoleUtilsInit();
 
        /*
        ** Select the console type based on compile time check
        ** Note: This example is not fully complaint to semihosting. It is
        **       recommended to use Uart console interface only.
        */
-       ConsoleUtilsSetType(CONSOLE_UART);
+ //   ConsoleUtilsSetType(CONSOLE_UART);
 
 
     /* Configure the EDMA clocks. */
@@ -588,7 +588,7 @@ void startFileSystem(void)
     /* Enable module clock for HSMMCSD. */
     HSMMCSDModuleClkConfig();
 
-    DelayTimerSetup(); //TODO: Brauchen wier das?
+ //   DelayTimerSetup(); //TODO: Brauchen wier das?
 
 
     /* Basic controller initializations */

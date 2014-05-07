@@ -261,6 +261,10 @@ typedef struct MMCSDContext {
 /*
 ** Function prototypes
 */
+
+void HSMMCSDPinMuxSetup(void);
+void HSMMCSDModuleClkConfig(void);
+
 extern void HSMMCSDDataGet(unsigned int baseAddr, unsigned char *data, unsigned int len);
 extern unsigned int HSMMCSDIsIntClockStable(unsigned int baseAddr, unsigned int retry);
 extern unsigned int HSMMCSDIsXferComplete(unsigned int baseAddr, unsigned int retry);
