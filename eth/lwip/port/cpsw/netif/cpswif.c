@@ -57,11 +57,14 @@
 
 /* DriverLib Header Files required for this interface driver. */
 #include "eth/cpsw/dr_cpsw.h"
+#include "eth/lwip/lwiplib.h"
+
 #include "eth/mdio/dr_mdio.h"
 #include "interrupt/dr_interrupt.h"
 #include "timer/dr_timer.h"
 #include "eth/phy/dr_phy.h"
 #include "cache.h"
+#include "basic.h"
 
 /* CPPI RAM size in bytes */
 #ifndef SIZE_CPPI_RAM
@@ -1137,15 +1140,11 @@ cpswif_phy_autoneg(struct cpswinst *cpswinst, u32_t port_num, u32_t adv) {
   /* Check if ethernet PHY is present or not */
   if (0 == (MDIOPhyAliveStatusGet(cpswinst->mdio_base)
             & (1 << cpswinst->port[port_num - 1].phy_addr))) {
-    LWIP_PRINTF("\n\rNo PHY found at addr %d for Port %d of Instance %d.",
-                cpswinst->port[port_num - 1].phy_addr,
-                port_num, 0);
+    LWIP_PRINTF("\n\rNo PHY found at addr %d for Port %d of Instance %d.", cpswinst->port[port_num - 1].phy_addr, port_num, 0);
     return linkstat;
   }
 
-  LWIP_PRINTF("\n\rPHY found at address %d for  Port %d of Instance %d.",
-              cpswinst->port[port_num - 1].phy_addr,
-              port_num, 0);
+  LWIP_PRINTF("\n\rPHY found at address %d for  Port %d of Instance %d.", cpswinst->port[port_num - 1].phy_addr, port_num, 0);
 
   if (SELECT_1000_HALF == adv) {
     LWIP_PRINTF("\n\rCPSW doesnot support Half Duplex for Gigabyte...");
@@ -1252,13 +1251,11 @@ cpswif_phy_autoneg(struct cpswinst *cpswinst, u32_t port_num, u32_t adv) {
   /* Check if PHY link is there or not */
   if (FALSE == ((PhyLinkStatusGet(cpswinst->mdio_base,
                 cpswinst->port[port_num - 1].phy_addr, 1000)))) {
-    LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Inst %d.",
-                port_num, 0);
+    LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Inst %d.", port_num, 0);
     return linkstat;
   }
 
-  LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.",
-              port_num, 0);
+  LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.", port_num, 0);
 
   CPSWSlRGMIIEnable(
                   cpswinst->port[port_num - 1].sliver_base);
@@ -1290,15 +1287,11 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
   /* Check if ethernet PHY is present or not */
   if (0 == (MDIOPhyAliveStatusGet(cpswinst->mdio_base)
             & (1 << cpswinst->port[port_num - 1].phy_addr))){
-    LWIP_PRINTF("\n\rNo PHY found at addr %d for Port %d of Instance %d.",
-                cpswinst->port[port_num - 1].phy_addr,
-                port_num, 0);
+    LWIP_PRINTF("\n\rNo PHY found at addr %d for Port %d of Instance %d.", cpswinst->port[port_num - 1].phy_addr, port_num, 0);
     return linkstat;
   }
 
-  LWIP_PRINTF("\n\rPHY found at address %d for  Port %d of Instance %d.",
-              cpswinst->port[port_num - 1].phy_addr,
-              port_num, 0);
+  LWIP_PRINTF("\n\rPHY found at address %d for  Port %d of Instance %d.", cpswinst->port[port_num - 1].phy_addr, port_num, 0);
 
   /* configure control for speed and duples */
   if (SELECT_SPEED_1000 == speed)
@@ -1314,8 +1307,7 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
     return linkstat;
   }
 
-  if (FALSE == PhyReset(cpswinst->mdio_base,
-                        cpswinst->port[port_num - 1].phy_addr)) {
+  if (FALSE == PhyReset(cpswinst->mdio_base, cpswinst->port[port_num - 1].phy_addr)) {
     LWIP_PRINTF("\n\rPHY Reset Failed...");
     return linkstat;
   }
@@ -1325,8 +1317,7 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
    while (frc_stat_cnt) {
 	  TimerDelayDelay(50);
       /* Check if PHY link is there or not */
-      frc_stat = (PhyLinkStatusGet(cpswinst->mdio_base,
-                  cpswinst->port[port_num - 1].phy_addr, 1000));
+      frc_stat = (PhyLinkStatusGet(cpswinst->mdio_base, cpswinst->port[port_num - 1].phy_addr, 1000));
 
       if (TRUE == frc_stat) {
         LWIP_PRINTF("\n\rPHY Link is Down.");
@@ -1357,12 +1348,10 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
     if (0 != frc_stat_cnt) {
       linkstat = ERR_OK;
       LWIP_PRINTF("\n\rPhy Configuration Successful.");
-      LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.",
-                  port_num, 0);
+      LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.", port_num, 0);
     } else {
       LWIP_PRINTF("\n\rPhy Configuration Successful.");
-      LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Inst %d.",
-                  port_num, 0);
+      LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Inst %d.", port_num, 0);
       return ERR_CONN;
     }
 
@@ -1386,8 +1375,7 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
     }
   } else {
     LWIP_PRINTF("\n\rPhy Configuration Not Successful.");
-    LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Inst %d.",
-                port_num, 0);
+    LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Inst %d.", port_num, 0);
     linkstat = ERR_CONN;
   }
 
@@ -1755,15 +1743,11 @@ cpswif_phylink_config(struct cpswportif * cpswif, u32_t slv_port_num) {
   /* Check if ethernet PHY is present or not */
   if(0 == (MDIOPhyAliveStatusGet(cpswinst->mdio_base)
         & (1 << cpswinst->port[slv_port_num - 1].phy_addr))){
-    LWIP_PRINTF("\n\rNo PHY found at address %d for  Port %d of Instance %d.",
-                cpswinst->port[slv_port_num - 1].phy_addr, slv_port_num,
-                cpswif->inst_num);
+    LWIP_PRINTF("\n\rNo PHY found at address %d for  Port %d of Instance %d.", cpswinst->port[slv_port_num - 1].phy_addr, slv_port_num, cpswif->inst_num);
     return ERR_CONN;
   }
 
-  LWIP_PRINTF("\n\rPHY found at address %d for  Port %d of Instance %d.",
-              cpswinst->port[slv_port_num - 1].phy_addr, slv_port_num,
-              cpswif->inst_num);
+  LWIP_PRINTF("\n\rPHY found at address %d for  Port %d of Instance %d.",  cpswinst->port[slv_port_num - 1].phy_addr, slv_port_num, cpswif->inst_num);
 
   /**
    * PHY is alive. So autonegotiate and get the speed and duplex
@@ -1774,13 +1758,11 @@ cpswif_phylink_config(struct cpswportif * cpswif, u32_t slv_port_num) {
   /* Check if PHY link is there or not */
   if(FALSE == ((PhyLinkStatusGet(cpswinst->mdio_base,
                            cpswinst->port[slv_port_num - 1].phy_addr, 1000)))) {
-    LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Instance %d.",
-                slv_port_num, cpswif->inst_num);
+    LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Instance %d.", slv_port_num, cpswif->inst_num);
     return ERR_CONN;
   }
 
-  LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.",
-              slv_port_num, cpswif->inst_num);
+  LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.", slv_port_num, cpswif->inst_num);
 
   CPSWSlRGMIIEnable(cpswinst->port[slv_port_num - 1].sliver_base);
 

@@ -12,7 +12,7 @@
 
 #include <inttypes.h>
 
-uint32_t EthConfigureWithIP(uint32_t ip);
+void EthConfigureWithIP(uint32_t ip);
 uint32_t EthConfigureWithDHCP();
 
 #endif /* DR_ETH_H_ */

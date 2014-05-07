@@ -45,6 +45,8 @@
 #ifndef __CPSWIF_H__
 #define __CPSWIF_H__
 
+#define beaglebone 1
+#define am335x 1
 /***************************************************************************/
 /*
  * Configurations for AM335x
@@ -81,7 +83,8 @@
 #endif
 
 #include "console/dr_console.h"
-#define LWIP_PRINTF                     ConsoleLog
+#include <stdio.h>
+#define LWIP_PRINTF                     printf
 
 #else
 #error Unsupported EVM !!!

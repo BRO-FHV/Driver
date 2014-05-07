@@ -45,7 +45,7 @@
 #define TIMER_INITIAL_COUNT             (0xFFFFA23Fu)
 #define TIMER_1MS_COUNT                 (0x5DC0u)
 #define TIMER_OVERFLOW                  (0xFFFFFFFFu)
-#define DELAY_USE_INTERRUPTS            1
+//#define DELAY_USE_INTERRUPTS            1
 
 static void DelayTimerIsr(void);
 static volatile unsigned int flagIsr = 1;
@@ -604,10 +604,6 @@ void TimerDelaySetup() {
     IntRegister(SYS_INT_TINT7, DelayTimerIsr);
     /* Set the priority */
     IntPrioritySet(SYS_INT_TINT7, 0, AINTC_HOSTINT_ROUTE_IRQ);
-
-    //TODO CHECK IF NEEDED
-    /* Enable the system interrupt */
-    //IntSystemEnable(SYS_INT_TINT7);
 #endif
 }
 
@@ -646,7 +642,6 @@ void TimerDelayDelay(uint32_t milliSec) {
         DisableDelayTimer();
         milliSec--;
     }
-
 #endif
 }
 
@@ -670,7 +665,7 @@ void TimerDelayStart(uint32_t millisec) {
 #else
     // Set the counter value
     SetDelayTimerCounterValue(RESET_VALUE);
-    flagIsr = milliSec;
+    flagIsr = millisec;
 #endif
 
 	EnableDelayTimer();
@@ -757,10 +752,12 @@ void SetDelayTimerCounterValue(uint32_t value) {
 }
 
 void EnableDelayTimer() {
-	// Start the Timer
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
 
-	reg32m(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ST);
+	//turn on timer
+	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ST);
+
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
 }
 
 void DisableDelayTimer() {

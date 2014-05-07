@@ -45,7 +45,7 @@
 #if SYS_LIGHTWEIGHT_PROT
 
 /* Sitara header files required for this interface driver. */
-#include "dr_interrupt.h"
+#include "interrupt/dr_interrupt.h"
 
 /**
  * This function is used to lock access to critical sections when lwipopt.h

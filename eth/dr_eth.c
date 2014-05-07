@@ -6,14 +6,16 @@
  * Description: 
  *
  */
-
+#include <stdio.h>
 #include "dr_eth.h"
 #include "cpsw/dr_cpsw.h"
 #include "lwip/lwiplib.h"
 #include "../timer/dr_timer.h"
 #include "../interrupt/dr_interrupt.h"
 
-uint32_t ConfigureCore(LWIP_IF* lwipIfPort, uint32_t ip);
+uint32_t ConfigureCore(uint32_t ip);
+void CPSWCore0RxIsr();
+void CPSWCore0TxIsr();
 
 void InterruptSetup();
 
@@ -22,8 +24,8 @@ void InterruptSetup();
  *
  * \param   ip		For Example IP Address 192.168.0.7 use the corresponding hex value 0xC0A80007
  **/
-uint32_t EthConfigureWithIP(uint32_t ip) {
-	return ConfigureCore(ip);
+void EthConfigureWithIP(uint32_t ip) {
+	ConfigureCore(ip);
 }
 
 /**
@@ -32,10 +34,10 @@ uint32_t EthConfigureWithIP(uint32_t ip) {
  * \return	The specific enum value that indicates the final state of the configuration.
  **/
 uint32_t EthConfigureWithDHCP() {
-	return ConfigureCore();
+	return ConfigureCore(0);
 }
 
-uint32_t ConfigureCore(uint32_t ip = 0) {
+uint32_t ConfigureCore(uint32_t ip) {
 	LWIP_IF lwipIfPort;
 
 	#ifdef LWIP_CACHE_ENABLED
@@ -64,10 +66,13 @@ uint32_t ConfigureCore(uint32_t ip = 0) {
 	lwipIfPort.instNum = 0;
 	lwipIfPort.slvPortNum = 1;
 	lwipIfPort.ipAddr = ip;
-	lwipIfPort.netMask = 0;
-	lwipIfPort.gwAddr = 0;
+	lwipIfPort.netMask = 0xFFFFFF00u;//0xFFFFFF00u => 255.255.255.0
+	lwipIfPort.gwAddr = 0xC0A80064u; //0xC0A80064u => 192.168.0.1
 
-	return  lwIPInit(&lwipIfPort);
+	uint32_t ipAddr = (uint32_t)lwIPInit(&lwipIfPort);
+	printf("\n\rUsing IP-Addr: %d.%d.%d.%d\n\r", (ipAddr & 0xFF), ((ipAddr >> 8) & 0xFF), ((ipAddr >> 16) & 0xFF), ((ipAddr >> 24) & 0xFF));
+
+	return ipAddr;
 }
 
 /*
