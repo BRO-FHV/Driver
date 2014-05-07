@@ -1360,18 +1360,21 @@ void HSMMCSDFsProcessCmdLine(void)
     //
     // Get a line of text from the user.
     //
-    ReadLine();
+
+
+    /*  ReadLine();
     if(g_cCmdBuf[0] == '\0')
     {
           return;
     }
-
+*/
     //
     // Pass the line from the user to the command processor.
     // It will be parsed and valid commands executed.
     //
-    iStatus = CmdLineProcess(g_cCmdBuf);
 
+    //iStatus = CmdLineProcess(g_cCmdBuf);
+    iStatus = CmdLineProcess("cat eins.txt");
     //
     // Handle the case of bad command.
     //

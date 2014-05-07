@@ -609,9 +609,9 @@ void startFileSystem(void)
             {
                 HSMMCSDFsMount(0, &sdCard);
                 initFlg = 0;
-                Cmd_help(0, NULL);
+             //   Cmd_help(0, NULL);
             }
-            HSMMCSDFsProcessCmdLine(); //TODO: Implementieren
+           HSMMCSDFsProcessCmdLine(); //TODO: Implementieren
         }
         else
         {
