@@ -257,6 +257,6 @@ void UartIntDisable(uint32_t baseAddr, uint32_t intFlag);
  *         FIFO status before using this API
  */
 uint32_t UartWrite(uint32_t baseAddr, const char *pBuffer, uint32_t numTxBytes);
-uint32_t UartWritef(uint32_t baseAddr,const char* string, va_list vaArg);
+void UartWritef(uint32_t baseAddr,const char* string, va_list vaArg);
 
 #endif /* UART_H_ */

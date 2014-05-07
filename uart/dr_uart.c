@@ -258,7 +258,7 @@ uint32_t UartWrite(uint32_t baseAddr, const char *pBuffer, uint32_t numTxBytes) 
 /**
  * \brief sends a message with a variable amount of argmunents over uart module identified by base address
  */
-uint32_t UartWritef(uint32_t baseAddr,const char* string, va_list vaArg) {
+void UartWritef(uint32_t baseAddr,const char* string, va_list vaArg) {
 
 	unsigned int idx, pos, count, base, neg;
 	char *pcStr, pcBuf[16], cFill;

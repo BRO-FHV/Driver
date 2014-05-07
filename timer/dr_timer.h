@@ -34,4 +34,6 @@ int32_t TimerReset(Timer timer);
 
 int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine routine);
 
+void delay(unsigned int milliseconds);
+
 #endif /* DR_TIMER_H_ */

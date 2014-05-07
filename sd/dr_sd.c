@@ -14,6 +14,7 @@
 #include "../edma/edma_event.h"
 #include "string.h"
 #include "dr_interrupt.h"
+#include "dr_timer.h"
 #include "../edma/edma.h"
 #include "../console/dr_console.h"
 
@@ -73,10 +74,10 @@ mmcsdCtrlInfo  ctrlInfo;
 /******************************************************************************
 **                      FUNCTION PROTOTYPES
 *******************************************************************************/
-/*extern void HSMMCSDFsMount(unsigned int driveNum, void *ptr);
+extern void HSMMCSDFsMount(unsigned int driveNum, void *ptr);
 extern void HSMMCSDFsProcessCmdLine(void);
-extern int Cmd_help(int argc, char *argv[]);
-*/
+//extern int Cmd_help(int argc, char *argv[]);
+
 /* EDMA callback function array */
 static void (*cb_Fxn[EDMA3_NUM_TCC]) (unsigned int tcc, unsigned int status);
 
