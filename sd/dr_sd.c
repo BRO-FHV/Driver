@@ -15,6 +15,7 @@
 #include "string.h"
 #include "dr_interrupt.h"
 #include "../edma/edma.h"
+#include "../console/dr_cnosole.h"
 
 /******************************************************************************
 **                      INTERNAL MACRO DEFINITIONS
@@ -566,15 +567,7 @@ void startFileSystem(void)
 
 
     /* Initialize console for communication with the Host Machine */
-       ConsoleUtilsInit();
-
-       /*
-       ** Select the console type based on compile time check
-       ** Note: This example is not fully complaint to semihosting. It is
-       **       recommended to use Uart console interface only.
-       */
-       ConsoleUtilsSetType(CONSOLE_UART);
-
+    ConsoleEnable(SOC_UART_0_REGS);
 
     /* Configure the EDMA clocks. */
     EDMAModuleClkConfig();
@@ -619,7 +612,7 @@ void startFileSystem(void)
 
             if(i == 1)
             {
-                 ConsoleUtilsPrintf("Please insert the card \n\r");
+                 ConsoleLog("FS","Please insert the card \n\r");
             }
 
             if(initFlg != 1)
