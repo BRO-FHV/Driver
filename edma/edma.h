@@ -459,6 +459,9 @@ extern void EDMA3ContextSave(unsigned int baseAddr,
 extern void EDMA3ContextRestore(unsigned int baseAddr,
                                 EDMACONTEXT *edmaCntxPtr);
 
+
+void EDMAModuleClkConfig(void);
+
 #ifdef __cplusplus
 }
 #endif
