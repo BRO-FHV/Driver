@@ -11,7 +11,10 @@
 #include "hw_types.h"
 #include "mmcsd_proto.h"
 #include "hs_mmcsdlib.h"
+#include "soc_AM335x.h"
 #include "ff.h"
+#include "string.h"
+#include "dr_uart.h"
 
 
 typedef struct _fatDevice

@@ -195,7 +195,6 @@ extern "C" {
 
 #define    EDMA_REVID_AM335X                  (0x02u)
 
-
 #define SOC_EDMA3_NUM_DMACH                 64
 #define SOC_EDMA3_NUM_QDMACH                8
 #define SOC_EDMA3_NUM_PARAMSETS             256
@@ -459,9 +458,7 @@ extern void EDMA3ContextSave(unsigned int baseAddr,
 extern void EDMA3ContextRestore(unsigned int baseAddr,
                                 EDMACONTEXT *edmaCntxPtr);
 
-
 void EDMAModuleClkConfig(void);
-
 #ifdef __cplusplus
 }
 #endif

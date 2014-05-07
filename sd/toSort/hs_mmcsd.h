@@ -265,32 +265,32 @@ typedef struct MMCSDContext {
 void HSMMCSDPinMuxSetup(void);
 void HSMMCSDModuleClkConfig(void);
 
-extern void HSMMCSDDataGet(unsigned int baseAddr, unsigned char *data, unsigned int len);
-extern unsigned int HSMMCSDIsIntClockStable(unsigned int baseAddr, unsigned int retry);
-extern unsigned int HSMMCSDIsXferComplete(unsigned int baseAddr, unsigned int retry);
-extern unsigned int HSMMCSDIsCmdComplete(unsigned int baseAddr, unsigned int retry);
-extern unsigned int HSMMCSDIntrStatusGet(unsigned int baseAddr, unsigned int flag);
-extern void HSMMCSDDataTimeoutSet(unsigned int baseAddr, unsigned int timeout);
-extern void HSMMCSDIntrStatusDisable(unsigned int baseAddr, unsigned int flag);
-extern void HSMMCSDIntrStatusEnable(unsigned int baseAddr, unsigned int flag);
-extern void HSMMCSDSupportedVoltSet(unsigned int baseAddr, unsigned int volt);
-extern void HSMMCSDIntrStatusClear(unsigned int baseAddr, unsigned int flag);
-extern void HSMMCSDSystemConfig(unsigned int baseAddr, unsigned int config);
-extern void HSMMCSDResponseGet(unsigned int baseAddr, unsigned int *rsp);
-extern void HSMMCSDBusWidthSet(unsigned int baseAddr, unsigned int width);
-extern void HSMMCSDBlkLenSet(unsigned int baseAddr, unsigned int blklen);
-extern void HSMMCSDBusVoltSet(unsigned int baseAddr, unsigned int volt);
-extern void HSMMCSDIntrEnable(unsigned int baseAddr, unsigned int flag);
-extern unsigned int HSMMCSDIsCardWriteProtected(unsigned int baseAddr);
-extern int HSMMCSDLinesReset(unsigned int baseAddr, unsigned int flag);
-extern int HSMMCSDBusPower(unsigned int baseAddr, unsigned int pwr);
-extern unsigned int HSMMCSDIsCardInserted(unsigned int baseAddr);
-extern unsigned int HSMMCSDIsHSupported(unsigned int baseAddr);
-extern int HSMMCSDInitStreamSend(unsigned int baseAddr);
-extern int HSMMCSDSoftReset(unsigned int baseAddr);
-extern int HSMMCSDBusFreqSet(unsigned int baseAddr, unsigned int freq_in,
+ void HSMMCSDDataGet(unsigned int baseAddr, unsigned char *data, unsigned int len);
+ unsigned int HSMMCSDIsIntClockStable(unsigned int baseAddr, unsigned int retry);
+ unsigned int HSMMCSDIsXferComplete(unsigned int baseAddr, unsigned int retry);
+ unsigned int HSMMCSDIsCmdComplete(unsigned int baseAddr, unsigned int retry);
+ unsigned int HSMMCSDIntrStatusGet(unsigned int baseAddr, unsigned int flag);
+ void HSMMCSDDataTimeoutSet(unsigned int baseAddr, unsigned int timeout);
+ void HSMMCSDIntrStatusDisable(unsigned int baseAddr, unsigned int flag);
+ void HSMMCSDIntrStatusEnable(unsigned int baseAddr, unsigned int flag);
+ void HSMMCSDSupportedVoltSet(unsigned int baseAddr, unsigned int volt);
+ void HSMMCSDIntrStatusClear(unsigned int baseAddr, unsigned int flag);
+ void HSMMCSDSystemConfig(unsigned int baseAddr, unsigned int config);
+ void HSMMCSDResponseGet(unsigned int baseAddr, unsigned int *rsp);
+ void HSMMCSDBusWidthSet(unsigned int baseAddr, unsigned int width);
+ void HSMMCSDBlkLenSet(unsigned int baseAddr, unsigned int blklen);
+ void HSMMCSDBusVoltSet(unsigned int baseAddr, unsigned int volt);
+ void HSMMCSDIntrEnable(unsigned int baseAddr, unsigned int flag);
+ unsigned int HSMMCSDIsCardWriteProtected(unsigned int baseAddr);
+ int HSMMCSDLinesReset(unsigned int baseAddr, unsigned int flag);
+ int HSMMCSDBusPower(unsigned int baseAddr, unsigned int pwr);
+ unsigned int HSMMCSDIsCardInserted(unsigned int baseAddr);
+ unsigned int HSMMCSDIsHSupported(unsigned int baseAddr);
+ int HSMMCSDInitStreamSend(unsigned int baseAddr);
+ int HSMMCSDSoftReset(unsigned int baseAddr);
+ int HSMMCSDBusFreqSet(unsigned int baseAddr, unsigned int freq_in,
                              unsigned int freq_out, unsigned int bypass);
-extern void HSMMCSDCommandSend(unsigned int baseAddr, unsigned int cmd,
+ void HSMMCSDCommandSend(unsigned int baseAddr, unsigned int cmd,
                                unsigned int cmdarg, void *data,
                                unsigned int nblks, unsigned int dmaEn);
 

@@ -44,6 +44,8 @@
 #include "../edma/edma.h"
 #include "mmcsd_proto.h"
 #include "string.h"
+#include "soc_AM335x.h"
+#include "dr_uart.h"
 
 
 /**
