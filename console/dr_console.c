@@ -72,7 +72,7 @@ void ConsoleLogf(char sender[], const char *message, ...) {
 	va_list arg;
 	va_start (arg, message);
 
-	UartWritef(sender, message, arg);
+	UartWritef(uartBaseAddr, strcat(sender, message), arg);
 
 	va_end(arg);
 }

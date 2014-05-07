@@ -386,7 +386,7 @@ Cmd_rm(int argc, char *argv[])
         */
         if(strlen(g_cTmpBuf) + strlen(argv[1]) + 1 + 1 > sizeof(g_cCwdBuf))
         {
-            ConsoleUtilsPrintf("Resulting path name is too long\n");
+        	ConsoleLogf("FS","Resulting path name is too long\n");
             return(0);
         }
 
@@ -530,7 +530,7 @@ Cmd_ls(int argc, char *argv[])
     /*
     ** Print summary lines showing the file, dir, and size totals.
     */
-    ConsoleUtilsPrintf("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
+    ConsoleLogf("FS","\n%4u File(s),%10u bytes total\n%4u Dir(s)",
                        ulFileCount, ulTotalSize, ulDirCount);
 
     /*
@@ -767,7 +767,7 @@ Cmd_cd(int argc, char *argv[])
         */
         if(strlen(g_cTmpBuf) + strlen(argv[1]) + 1 + 1 > sizeof(g_cCwdBuf))
         {
-            ConsoleUtilsPrintf("Resulting path name is too long\n");
+        	ConsoleLogf("FS","Resulting path name is too long\n");
             return(0);
         }
 
@@ -1125,7 +1125,7 @@ Cmd_cat(int argc, char *argv[])
 
                 if(fresultWrite != FR_OK)
                 {
-                    ConsoleUtilsPrintf("\n");
+                	ConsoleLogf("FS","\n");
                     return(fresultWrite);
                 }
             }
@@ -1235,7 +1235,7 @@ Cmd_cat(int argc, char *argv[])
 
             if(fresultRead != FR_OK)
             {
-                ConsoleUtilsPrintf("\n");
+            	ConsoleLogf("FS","\n");
                 return(fresultRead);
             }
         }
@@ -1251,7 +1251,7 @@ Cmd_cat(int argc, char *argv[])
 
             if(fresultWrite != FR_OK)
             {
-                ConsoleUtilsPrintf("\n");
+            	ConsoleLogf("FS","\n");
                 return(fresultWrite);
             }
         }
