@@ -619,44 +619,51 @@ convert:
 	/**
 	 * \brief handles uart interrupt
 	 */
-	void UartInterrupt(void) {
+	void UartInterrupt(void)
+	{
 		uint32_t intId = UartIntIdentityGet(SOC_UART_0_REGS);
 		char rxByte;
 
-		switch (intId) {
-		case UART_INTID_TX_THRES_REACH:
-			// enable chunk
-			txEmptyFlag = TRUE;
+		switch (intId)
+		{
+			case UART_INTID_TX_THRES_REACH:
+			{	// enable chunk
+				txEmptyFlag = TRUE;
 
-			// Disable the THR interrupt. This has to be done even if the
-			UartIntDisable(SOC_UART_0_REGS, UART_INT_THR);
+				// Disable the THR interrupt. This has to be done even if the
+				UartIntDisable(SOC_UART_0_REGS, UART_INT_THR);
 
-			// write a chunk
-			uint32_t l = UartWriteChunk(SOC_UART_0_REGS);
-			break;
-
-		case UART_INTID_RX_THRES_REACH:
-			printf("UART_INTID_RX_THRES_REACH\n");
-			rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
-
-			printf("char: %c\r\n", rxByte);
-			break;
-
-		case UART_INTID_RX_LINE_STAT_ERROR:
-			printf("UART_INTID_RX_LINE_STAT_ERROR\n");
-			break;
-
-		case UART_INTID_CHAR_TIMEOUT:
-			printf("UART_INTID_CHAR_TIMEOUT\n");
-			while (TRUE == UartAvailable(SOC_UART_0_REGS)) {
-				rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
-				printf("char: %c\r\n", rxByte);
+				// write a chunk
+				uint32_t l = UartWriteChunk(SOC_UART_0_REGS);
+				break;
 			}
-			break;
+			case UART_INTID_RX_THRES_REACH:
+			{
+				printf("UART_INTID_RX_THRES_REACH\n");
+				rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
 
-		default:
-			printf("DEFAULT\n");
-			break;
+				printf("char: %c\r\n", rxByte);
+				break;
+			}
+			case UART_INTID_RX_LINE_STAT_ERROR:
+			{
+				printf("UART_INTID_RX_LINE_STAT_ERROR\n");
+				break;
+			}
+			case UART_INTID_CHAR_TIMEOUT:
+			{
+				printf("UART_INTID_CHAR_TIMEOUT\n");
+				while (TRUE == UartAvailable(SOC_UART_0_REGS)) {
+					rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
+					printf("char: %c\r\n", rxByte);
+				}
+				break;
+			}
+			default:
+			{
+				printf("DEFAULT\n");
+				break;
+			}
 		}
 	}
 
