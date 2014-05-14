@@ -41,11 +41,11 @@
 
 
 #include "hs_mmcsd.h"
-#include "../edma/edma.h"
+#include "../../edma/edma.h"
 #include "mmcsd_proto.h"
 #include "string.h"
 #include "soc_AM335x.h"
-#include "dr_uart.h"
+#include "../../uart/dr_uart.h"
 
 
 /**

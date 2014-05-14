@@ -7,14 +7,14 @@
  * TODO
  */
 
-#include "mmcsd_proto.h"
-#include "hs_mmcsdlib.h"
+#include "toSort/mmcsd_proto.h"
+#include "toSort/hs_mmcsdlib.h"
 #include "soc_AM335x.h"
-#include "hs_mmcsd.h"
+#include "toSort/hs_mmcsd.h"
 #include "../edma/edma_event.h"
 #include "string.h"
-#include "dr_interrupt.h"
-#include "dr_timer.h"
+#include "../interrupt/dr_interrupt.h"
+#include "../timer/dr_timer.h"
 #include "../edma/edma.h"
 #include "../console/dr_console.h"
 
