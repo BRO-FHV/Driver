@@ -1207,7 +1207,7 @@ tCmdLineEntry g_sCmdTable[] =
 };
 
 
-void HSMMCSDFsProcessCmdLine(void)
+unsigned int HSMMCSDFsProcessCmdLine(void)
 {
     int iStatus;
     //
@@ -1260,4 +1260,5 @@ void HSMMCSDFsProcessCmdLine(void)
 
     g_cCmdBuf[0] = '\0';
     ConsoleLogf("FS", "%s> %s", g_cCwdBuf, g_cCmdBuf);
+    return 1;
 }

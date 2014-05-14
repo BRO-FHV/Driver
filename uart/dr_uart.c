@@ -390,7 +390,10 @@ again:
 					for(idx = 0u; pcStr[idx] != '\0'; idx++)
 					{
 					}
-
+					printf(pcStr);
+					printf("\n");
+					printf("%d",strlen(pcStr));
+					printf("\n");
 					/* Write the string. */
 					UartWrite(SOC_UART_0_REGS,pcStr, idx);
 

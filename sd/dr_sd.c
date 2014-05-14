@@ -17,6 +17,7 @@
 #include "../timer/dr_timer.h"
 #include "../edma/edma.h"
 #include "../console/dr_console.h"
+#include "cpu/hw_cpu.h"
 
 /******************************************************************************
 **                      INTERNAL MACRO DEFINITIONS
@@ -75,7 +76,7 @@ mmcsdCtrlInfo  ctrlInfo;
 **                      FUNCTION PROTOTYPES
 *******************************************************************************/
 extern void HSMMCSDFsMount(unsigned int driveNum, void *ptr);
-extern void HSMMCSDFsProcessCmdLine(void);
+extern unsigned int HSMMCSDFsProcessCmdLine(void);
 //extern int Cmd_help(int argc, char *argv[]);
 
 /* EDMA callback function array */
@@ -565,19 +566,8 @@ void startFileSystem(void)
     volatile unsigned int i = 0;
     volatile unsigned int initFlg = 1;
 
-
-
     /* Initialize console for communication with the Host Machine */
     ConsoleEnable(SOC_UART_0_REGS);
-     //  ConsoleUtilsInit();
-
-       /*
-       ** Select the console type based on compile time check
-       ** Note: This example is not fully complaint to semihosting. It is
-       **       recommended to use Uart console interface only.
-       */
- //   ConsoleUtilsSetType(CONSOLE_UART);
-
 
     /* Configure the EDMA clocks. */
     EDMAModuleClkConfig();
@@ -591,9 +581,6 @@ void startFileSystem(void)
     /* Enable module clock for HSMMCSD. */
     HSMMCSDModuleClkConfig();
 
- //   DelayTimerSetup(); //TODO: Brauchen wier das?
-
-
     /* Basic controller initializations */
     HSMMCSDControllerSetup();
 
@@ -602,7 +589,10 @@ void startFileSystem(void)
 
     MMCSDIntEnable(&ctrlInfo);
 
-    while(1)
+    CPUirqe();
+
+    unsigned int read = 0;
+    while(!read)
     {
         if((HSMMCSDCardPresent(&ctrlInfo)) == 1)
         {
@@ -610,9 +600,8 @@ void startFileSystem(void)
             {
                 HSMMCSDFsMount(0, &sdCard);
                 initFlg = 0;
-             //   Cmd_help(0, NULL);
             }
-           HSMMCSDFsProcessCmdLine(); //TODO: Implementieren
+         read =  HSMMCSDFsProcessCmdLine();
         }
         else
         {
@@ -620,7 +609,7 @@ void startFileSystem(void)
 
             i = (i + 1) & 0xFFF;
 
-            if(i == 1)
+            if(i %20 == 1)
             {
                  ConsoleLog("FS","Please insert the card \n\r");
             }
