@@ -285,12 +285,13 @@ int xmodemTransmit(unsigned char *src, int srcsz)
 int _inbyte(unsigned int timeout) // msec timeout
 {
 
-    return(UARTCharGetTimeout(SOC_UART_0_REGS, timeout));
+   // return(UARTCharGetTimeout(SOC_UART_0_REGS, timeout));
+	return 1;
 
 }
 void _outbyte(int c)
 {
-    UARTPutc(c);
+    //UARTPutc(c);
 }
 
 

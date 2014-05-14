@@ -857,18 +857,6 @@ Cmd_cat(int argc, char *argv[])
     unsigned short totalBytesCnt = 0;
     unsigned int flagWrite = 0;
     unsigned int flagRead = 0;
-#ifdef MMCSD_PERF
-    unsigned int thrPutRead = 0;
-    unsigned int timeRead = 0;
-    unsigned int ticksRead = 0;
-    unsigned int totalTicksRead = 0;
-    unsigned int totalBytesRead = 0;
-    unsigned int thrPutWrite = 0;
-    unsigned int timeWrite = 0;
-    unsigned int ticksWrite = 0;
-    unsigned int totalTicksWrite = 0;
-    unsigned int totalBytesWrite = 0;
-#endif
 
     /*
     ** First, check to make sure that the current path (CWD), plus the file
@@ -962,29 +950,12 @@ Cmd_cat(int argc, char *argv[])
 
             do
             {
-#ifdef MMCSD_PERF
-                /*
-                ** Start timer to count read time
-                ** /NOTE  Delay functions (Blocking or Tight Loop) should not be
-                **        called till PerfTimerStop. Max Duration is 171 Sec.
-                */
-                PerfTimerStart();
-#endif
-
                 fresultWrite = f_write(&fileObjectWrite,
                                        (g_cDataBuf + bytesCnt),
                                        (((usBytesRead - bytesCnt) >= DATA_BUF_SIZE) ?
                                          DATA_BUF_SIZE : (usBytesRead - bytesCnt)),
                                        &bytesWrite);
 
-#ifdef MMCSD_PERF
-                /*
-                ** Stop timer and compute read time
-                */
-                ticksWrite = PerfTimerStop();
-                totalTicksWrite += ticksWrite;
-                totalBytesWrite += bytesWrite;
-#endif
 
                 if(fresultWrite != FR_OK)
                 {
@@ -1060,14 +1031,6 @@ Cmd_cat(int argc, char *argv[])
         */
         do
         {
-#ifdef MMCSD_PERF
-            /*
-            ** Start timer to count read time
-            ** /NOTE  Delay functions (Blocking or Tight Loop) should not be
-            **        called till PerfTimerStop. Maximum Duration is 171 Sec.
-            */
-            PerfTimerStart();
-#endif
 
             /*
             ** Read a block of data from the file.  Read as much as can fit in
@@ -1075,15 +1038,6 @@ Cmd_cat(int argc, char *argv[])
             */
             fresultRead = f_read(&g_sFileObject, g_cDataBuf,
                                  sizeof(g_cDataBuf) - 1, &usBytesRead);
-
-#ifdef MMCSD_PERF
-            /*
-            ** Stop timer and compute read time
-            */
-            ticksRead = PerfTimerStop();
-            totalTicksRead += ticksRead;
-            totalBytesRead += usBytesRead;
-#endif
 
             /*
             ** If there was an error reading, then print a newline and return
@@ -1102,26 +1056,9 @@ Cmd_cat(int argc, char *argv[])
             */
             if(flagWrite)
             {
-#ifdef MMCSD_PERF
-                /*
-                ** Start timer to count read time
-                ** /NOTE  Delay functions (Blocking or Tight Loop) should not be
-                **        called till PerfTimerStop. Max Duration is 171 Sec.
-                */
-                PerfTimerStart();
-#endif
-
                 fresultWrite = f_write(&fileObjectWrite, g_cDataBuf,
                                        usBytesRead, &bytesWrite);
 
-#ifdef MMCSD_PERF
-                /*
-                ** Stop timer and compute read time
-                */
-                ticksWrite = PerfTimerStop();
-                totalTicksWrite += ticksWrite;
-                totalBytesWrite += bytesWrite;
-#endif
 
                 if(fresultWrite != FR_OK)
                 {
@@ -1151,79 +1088,6 @@ Cmd_cat(int argc, char *argv[])
         }
         while(usBytesRead == sizeof(g_cDataBuf) - 1);
     }
-
-#ifdef MMCSD_PERF
-        /*
-        ** Print card bus-width, transfer speed.
-        */
-    ConsoleLogf("FS", " ************ MMCSD Settings ************ \r\n");
-
-    ConsoleLogf("FS", " BUS WIDTH (BIT)             : %d \r\n",
-                           GET_SD_CARD_BUSWIDTH(sdCard));
-    ConsoleLogf("FS", " TRANSFER SPEED (MHz)        : %d \r\n",
-                           GET_SD_CARD_FRE(sdCard));
-
-    ConsoleLogf("FS", " **************************************** \r\n");
-
-        /*
-        ** Compute and print performance for file read.
-        */
-        if(flagRead)
-        {
-            timeRead = (unsigned int)(totalTicksRead /
-                                      (CLK_EXT_CRYSTAL_SPEED / 1000));
-
-            if(timeRead)
-            {
-                thrPutRead = ((totalBytesRead / timeRead) * 1000) ;
-            }
-            else
-            {
-                thrPutRead = 0;
-            }
-
-            ConsoleLogf("FS", " ***** MMCSD File Read Performance ***** \r\n");
-            ConsoleLogf("FS", " READ BUFFER SIZE (BYTES)    : %d \r\n",
-                               DATA_BUF_SIZE);
-            ConsoleLogf("FS", " TOTAL BYTES TRANSFERRED     : %d \r\n",
-                               totalBytesRead);
-            ConsoleLogf("FS", " TIME TAKEN (IN MILLISECS)   : %d \r\n",
-                               timeRead);
-            ConsoleLogf("FS", " THROUGHPUT (BYTES / SECS )  : %d \r\n",
-                               thrPutRead);
-        }
-
-        /*
-        ** Compute and print performance for file write.
-        */
-        if(flagWrite)
-        {
-            timeWrite = (unsigned int)(totalTicksWrite /
-                                       (CLK_EXT_CRYSTAL_SPEED / 1000));
-
-            if(timeWrite)
-            {
-                thrPutWrite = ((totalBytesWrite / timeWrite) * 1000) ;
-            }
-            else
-            {
-                thrPutWrite = 0;
-            }
-
-            ConsoleLogf("FS", " ***** MMCSD File Write Performance **** \r\n");
-            ConsoleLogf("FS", " WRITE BUFFER SIZE (BYTES)   : %d \r\n",
-                               DATA_BUF_SIZE);
-            ConsoleLogf("FS", " TOTAL BYTES TRANSFERRED     : %d \r\n",
-                               totalBytesWrite);
-            ConsoleLogf("FS", " TIME TAKEN (IN MILLISECS)   : %d \r\n",
-                               timeWrite);
-            ConsoleLogf("FS", " THROUGHPUT (BYTES / SECS )  : %d \r\n",
-                               thrPutWrite);
-        }
-
-        ConsoleLogf("FS", " **************************************** \r\n");
-#endif
-
         /*
         ** Close the Read file.
         ** If there was an error writing, then print a newline and return the
@@ -1367,7 +1231,7 @@ void HSMMCSDFsProcessCmdLine(void)
     //
 
     //iStatus = CmdLineProcess(g_cCmdBuf);
-    iStatus = CmdLineProcess("cat eins.txt");
+    iStatus = CmdLineProcess("cat eins");
     //
     // Handle the case of bad command.
     //

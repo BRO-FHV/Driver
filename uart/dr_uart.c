@@ -15,7 +15,7 @@
 #include <platform/hw_beaglebone.h>
 #include <uart/hw_uart.h>
 #include <basic.h>
-#include <list/linkedlist.h>
+#include "list/linkedlist.h"
 #include "../interrupt/dr_interrupt.h"
 #include "dr_uart.h"
 

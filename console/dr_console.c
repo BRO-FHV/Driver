@@ -67,12 +67,12 @@ void ConsoleLog(char sender[], char message[]) {
 /**
  * \brief Send Log Message with variable amount of arguments
  */
-void ConsoleLogf(char sender[], const char *message, ...) {
+void ConsoleLogf(char sender[], const char *string, ...) {
 
 	va_list arg;
-	va_start (arg, message);
+	va_start (arg, string);
 
-	UartWritef(uartBaseAddr, strcat(sender, message), arg);
+	UartWritef(uartBaseAddr,  string, arg);
 
 	va_end(arg);
 }
