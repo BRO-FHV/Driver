@@ -40,7 +40,7 @@
  */
 
 #include "lwip/tcp.h"
-#include "echod.h"
+#include "dr_echo.h"
 #include <string.h>
 #include <stdio.h>
 
