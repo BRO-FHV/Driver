@@ -28,9 +28,6 @@
 #include <hw_cm_wkup.h>
 #include <hw_cm_per.h>
 
-#define NUMBER_OF_TIMERS	8
-#define RESET_VALUE			0x00
-
 /**
  * \brief   This macro will check for write POSTED status.
  *
@@ -44,12 +41,11 @@
 
 #define TIMER_INITIAL_COUNT             (0xFFFFA23Fu)
 #define TIMER_1MS_COUNT                 (0x5DC0u)
-#define TIMER_OVERFLOW                  (0xFFFFFFFFu)
-//#define DELAY_USE_INTERRUPTS            1
+#define NUMBER_OF_TIMERS				8
+#define RESET_VALUE						0x00
+#define DELAY_USE_INTERRUPTS 			1
 
-static void DelayTimerIsr(void);
 static volatile unsigned int flagIsr = 1;
-
 static uint16_t timers[NUMBER_OF_TIMERS];
 static const uint8_t TIMER_FACTOR = 32;
 
@@ -96,9 +92,12 @@ void ShutdownDelayTimer();
 void EnableDelayTimerInterrupts();
 void DisableDelayTimerInterrupts();
 void SetDelayTimerCounterValue(uint32_t value);
+void SetDelayTimerMatchValue(uint32_t value);
 void EnableDelayTimer();
 void DisableDelayTimer();
 uint32_t GetDelayTimerCounterValue();
+static void DelayTimerIsr();
+
 
 /**
  * \brief Enable a timer. ST bit of TCLR is set to 1. No registers were reset!
@@ -603,7 +602,11 @@ void TimerDelaySetup() {
     /* Registering DelayTimerIsr */
     IntRegister(SYS_INT_TINT7, DelayTimerIsr);
     /* Set the priority */
+	//configure interrupt routine
+	IntRegister(SYS_INT_TINT7, DelayTimerIsr);
     IntPrioritySet(SYS_INT_TINT7, 0, AINTC_HOSTINT_ROUTE_IRQ);
+	IntHandlerEnable(SYS_INT_TINT7);
+	IntResetRegister(SYS_INT_TINT7, ResetTimer7IrqStatus);
 #endif
 }
 
@@ -619,9 +622,10 @@ void TimerDelaySetup() {
  */
 void TimerDelayDelay(uint32_t milliSec) {
 #ifdef DELAY_USE_INTERRUPTS
-    unsigned int countVal = TIMER_OVERFLOW - (milliSec * TIMER_1MS_COUNT);
+	uint32_t matchValue = milliSec * TIMER_FACTOR;
 
-    SetDelayTimerCounterValue(countVal);
+    SetDelayTimerCounterValue(RESET_VALUE);
+    SetDelayTimerMatchValue(matchValue);
 
     flagIsr = FALSE;
 
@@ -629,7 +633,7 @@ void TimerDelayDelay(uint32_t milliSec) {
 
     EnableDelayTimer();
 
-    while(FALSE == flagIsr) ;
+    while(FALSE == flagIsr);
 
     DisableDelayTimerInterrupts();
 
@@ -652,12 +656,12 @@ void TimerDelayDelay(uint32_t milliSec) {
  *
  * \return  None.
  */
-void TimerDelayStart(uint32_t millisec) {
+void TimerDelayStart(uint32_t milliSec) {
 #ifdef DELAY_USE_INTERRUPTS
-    uint32_t countVal = TIMER_OVERFLOW - (millisec * TIMER_1MS_COUNT);
+	uint32_t matchValue = milliSec * TIMER_FACTOR;
 
-    // Set the counter value
-    SetDelayTimerCounterValue(countVal);
+    SetDelayTimerCounterValue(RESET_VALUE);
+    SetDelayTimerMatchValue(matchValue);
 
     flagIsr = FALSE;
 
@@ -665,7 +669,7 @@ void TimerDelayStart(uint32_t millisec) {
 #else
     // Set the counter value
     SetDelayTimerCounterValue(RESET_VALUE);
-    flagIsr = millisec;
+    flagIsr = milliSec;
 #endif
 
 	EnableDelayTimer();
@@ -713,15 +717,9 @@ uint32_t TimerDelayIsElapsed() {
 #endif
 }
 
-/*
-** DMTimer Interrupt Service Routine.
-*/
-
-static void DelayTimerIsr(void)
+static void DelayTimerIsr()
 {
-    // Clear the status of the interrupt flags
-	//TODO CHECK IF IT IS WORKING
-    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQSTATUS, (TISR_OVF_IT_FLAG & (TISR_TCAR_IT_FLAG | TISR_OVF_IT_FLAG | TISR_MAT_IT_FLAG)));
+	ResetTimer7IrqStatus();
 
 	ShutdownDelayTimer();
 
@@ -746,9 +744,17 @@ void DisableDelayTimerInterrupts() {
 }
 
 void SetDelayTimerCounterValue(uint32_t value) {
-	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, SOC_DMTIMER_7_REGS)
     // Set the counter value
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, SOC_DMTIMER_7_REGS)
     reg32w(SOC_DMTIMER_7_REGS, TIMER_TCRR, value);
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, SOC_DMTIMER_7_REGS)
+}
+
+void SetDelayTimerMatchValue(uint32_t value) {
+	//defines the match value (e.g. interrupt is raised, if this value is reached)
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TMAR, SOC_DMTIMER_7_REGS)
+	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TMAR, value);
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TMAR, SOC_DMTIMER_7_REGS)
 }
 
 void EnableDelayTimer() {

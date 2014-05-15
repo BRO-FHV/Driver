@@ -11,8 +11,15 @@
 #include "dr_broadcast.h"
 #include <string.h>
 #include <stdio.h>
+#include "timer/dr_timer.h"
 
-#define PORT 2000
+#define PORT 		2000
+#define DELAY 		5000
+#define USE_TIMER	Timer_TIMER4
+
+static char msg[] = "testing";
+static struct udp_pcb *pcb;
+
 
 void udp_echo_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct ip_addr *addr, u16_t port) {
 	if (p != NULL) {
@@ -21,24 +28,21 @@ void udp_echo_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct ip_add
 	}
 }
 
-void broadcast_start() {
-	struct udp_pcb *pcb;
-	char msg[] = "testing";
+void sendBroadcastMsg() {
 	struct pbuf *p;
+	p = pbuf_alloc(PBUF_TRANSPORT, sizeof(msg), PBUF_RAM);
 
+	memcpy(p->payload, msg, sizeof(msg));
+	udp_sendto(pcb, p, IP_ADDR_BROADCAST, PORT);
+	pbuf_free(p); //De-allocate packet buffer
+	printf("broadcast message send...\n");
+}
+
+void BroadcastStart() {
 	pcb = udp_new();
 	udp_bind(pcb, IP_ADDR_ANY, PORT);
 	udp_recv(pcb, udp_echo_recv, NULL);
 
-	while (1) {
-		p = pbuf_alloc(PBUF_TRANSPORT, sizeof(msg), PBUF_RAM);
-		memcpy(p->payload, msg, sizeof(msg));
-		udp_sendto(pcb, p, IP_ADDR_BROADCAST, PORT);
-		pbuf_free(p); //De-allocate packet buffer
-		printf("message send!\n");
-
-		volatile int i = 0;
-		for (i = 0; i < 10000; i++) {
-		}
-	}
+	TimerConfiguration(USE_TIMER, DELAY, sendBroadcastMsg);
+	TimerEnable(USE_TIMER);
 }

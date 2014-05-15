@@ -89,10 +89,9 @@ void InterruptSetup() {
 	IntPrioritySet(SYS_INT_3PGSWTXINT0, 0, AINTC_HOSTINT_ROUTE_IRQ);
 	IntPrioritySet(SYS_INT_3PGSWRXINT0, 0, AINTC_HOSTINT_ROUTE_IRQ);
 
-	//TODO CHECK IF NEEDED
-	/* Enable the system interrupt */
-	//IntSystemEnable(SYS_INT_3PGSWTXINT0);
-	//IntSystemEnable(SYS_INT_3PGSWRXINT0);
+    /* Enable the system interrupt */
+//    IntSystemEnable(SYS_INT_3PGSWTXINT0);
+//    IntSystemEnable(SYS_INT_3PGSWRXINT0);
 }
 
 /*

@@ -40,7 +40,7 @@ int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine 
 
 void TimerDelaySetup();
 void TimerDelayDelay(uint32_t milliSec);
-void TimerDelayStart(uint32_t millisec);
+void TimerDelayStart(uint32_t milliSec);
 void TimerDelayStop();
 uint32_t TimerDelayIsElapsed();
 

@@ -4,12 +4,12 @@
  *
  * Created on: 04.05.2014
  * Description: 
- * TODO
+ * It uses port 3000
  */
 
 #ifndef DR_ECHO_H_
 #define DR_ECHO_H_
 
-void echo_init(void);
+void EchoStart();
 
 #endif /* DR_ECHO_H_ */

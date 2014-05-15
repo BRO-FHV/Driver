@@ -185,3 +185,9 @@ static void IntDefaultResetHandler(void) {
 	;
 }
 
+void IntSystemEnable(uint32_t intrNum) {
+    __asm(" dsb");
+
+    /* Disable the system interrupt in the corresponding MIR_CLEAR register */
+    reg32w(SOC_AINTC_REGS, INTC_MIR_CLEAR(intrNum >> REG_IDX_SHIFT), (0x01 << (intrNum & REG_BIT_MASK)));
+}
