@@ -28,6 +28,12 @@ typedef void (*InterruptRoutine)(void);
 
 int32_t TimerEnable(Timer timer);
 
+int32_t TimerPause(Timer timer);
+
+int32_t TimerContinue(Timer timer);
+
+int32_t TimerStop(Timer timer);
+
 int32_t TimerDisable(Timer timer);
 
 int32_t TimerReset(Timer timer);
