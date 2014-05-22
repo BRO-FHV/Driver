@@ -154,7 +154,7 @@ static void lwIPDHCPComplete(unsigned int ifNum)
 
     while(dhcpTries--)
     {
-//        LWIP_PRINTF("LWIPLIP", "\n\rDHCP Trial %d...", (NUM_DHCP_TRIES - dhcpTries));
+        LWIP_PRINTF("\n\rDHCP Trial %d...", (NUM_DHCP_TRIES - dhcpTries));
         dhcp_start(&cpswNetIF[ifNum]);
 
         cnt = LWIP_DHCP_TIMEOUT;
@@ -162,7 +162,7 @@ static void lwIPDHCPComplete(unsigned int ifNum)
         /* Check for DHCP completion for 'cnt' number of times, each 10ms */
         while(cnt--)
         {
-            TimerDelayDelay(10);
+            TimerDelayDelay(10); //default 10
             state = &(cpswNetIF[ifNum].dhcp->state);
             if(DHCP_BOUND == *state)
             {
@@ -171,7 +171,7 @@ static void lwIPDHCPComplete(unsigned int ifNum)
         }
     }
 
-    LWIP_PRINTF("LWIPLIB", "\n\rUnable to complete DHCP! \n\r");
+    LWIP_PRINTF("\n\rUnable to complete DHCP! \n\r");
 }
 
 /**
@@ -237,7 +237,7 @@ unsigned int lwIPInit(LWIP_IF *lwipIf)
        netif_add(&cpswNetIF[ifNum], &ip_addr, &net_mask, &gw_addr, 
                  &cpswPortIf[ifNum], cpswif_init, ip_input))
     {
-//        LWIP_PRINTF("\n\rUnable to add interface for interface %d", ifNum);
+        LWIP_PRINTF("\n\rUnable to add interface for interface %d", ifNum);
         return 0;
     }
 

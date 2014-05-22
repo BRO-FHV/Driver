@@ -1193,7 +1193,7 @@ cpswif_phy_autoneg(struct cpswinst *cpswinst, u32_t port_num, u32_t adv) {
                        cpswinst->port[port_num -1].phy_addr,
                        &adv_val, &gig_adv_val) == TRUE) {
     while (aut_neg_cnt) {
-      TimerDelayDelay(50);
+      TimerDelayDelay(50); //default 50
       auto_stat = PhyAutoNegStatusGet(cpswinst->mdio_base,
                                       cpswinst->port[port_num -1].phy_addr);
       if (TRUE == auto_stat) {
@@ -1315,7 +1315,7 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
   if (TRUE == (PhyLinkStatusGet(cpswinst->mdio_base,
                cpswinst->port[port_num - 1].phy_addr, 1000))) {
    while (frc_stat_cnt) {
-	  TimerDelayDelay(50);
+	  TimerDelayDelay(50); //default 50
       /* Check if PHY link is there or not */
       frc_stat = (PhyLinkStatusGet(cpswinst->mdio_base, cpswinst->port[port_num - 1].phy_addr, 1000));
 
@@ -1335,7 +1335,7 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
   if (PhyConfigure(cpswinst->mdio_base, cpswinst->port[port_num -1].phy_addr,
                    speed_val, duplex_val)) {
     while (frc_stat_cnt) {
-      TimerDelayDelay(50);
+      TimerDelayDelay(1000); //default: 50
       frc_stat = PhyLinkStatusGet(cpswinst->mdio_base,
                            cpswinst->port[port_num - 1].phy_addr, 1000);
 
@@ -1431,7 +1431,7 @@ cpswif_autoneg_config(u32_t inst_num, u32_t port_num) {
                       cpswinst->port[port_num -1].phy_addr,
                       &adv_val, &gig_adv_val) == TRUE) {
     while(aut_neg_cnt) {
-      TimerDelayDelay(50);
+      TimerDelayDelay(50); //default 50
       auto_stat = PhyAutoNegStatusGet(cpswinst->mdio_base,
                                       cpswinst->port[port_num -1].phy_addr);
       if(TRUE == auto_stat) {
@@ -1923,7 +1923,7 @@ cpswif_inst_init(struct cpswportif *cpswif){
 
   /* Initialize MDIO */
   MDIOInit(cpswinst->mdio_base, MDIO_FREQ_INPUT, MDIO_FREQ_OUTPUT);
-  TimerDelayDelay(1);
+  TimerDelayDelay(50); //default 1
 
   CPSWALEInit(cpswinst->ale_base);
 

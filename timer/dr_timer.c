@@ -43,9 +43,9 @@
 #define TIMER_1MS_COUNT                 (0x5DC0u)
 #define NUMBER_OF_TIMERS				8
 #define RESET_VALUE						0x00
-#define DELAY_USE_INTERRUPTS 			1
+#define DELAY_USE_INTERRUPTS 			0
 
-static volatile unsigned int flagIsr = 1;
+static volatile tBoolean flagIsr = 1;
 static uint16_t timers[NUMBER_OF_TIMERS];
 static const uint8_t TIMER_FACTOR = 32;
 
@@ -132,6 +132,8 @@ int32_t TimerEnable(Timer timer) {
 }
 
 void EnableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps) {
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
+
 	//turn on timer
 	reg32wor(baseAddr, tclr, TCLR_ST);
 
@@ -169,6 +171,8 @@ int32_t TimerDisable(Timer timer) {
 }
 
 void DisableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps) {
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
+
 	//shut down timer
 	reg32an(baseAddr, tclr, TCLR_ST);
 
@@ -335,7 +339,7 @@ void SetIrqWakeenMode(uint32_t baseAddr, IrqWakeen irqwakeen, uint32_t irqWakeen
 		reg32wor(baseAddr, irqWakeenRegister, IRQWAKEEN_TCAR_WUP_ENA);
 		break;
 	case IrqWakeen_ALL:
-		reg32wor(baseAddr, irqWakeenRegister, IRQWAKEEN_MAT_WUP_ENA & IRQWAKEEN_OVF_WUP_ENA & IRQWAKEEN_TCAR_WUP_ENA);
+		reg32wor(baseAddr, irqWakeenRegister, IRQWAKEEN_MAT_WUP_ENA + IRQWAKEEN_OVF_WUP_ENA + IRQWAKEEN_TCAR_WUP_ENA);
 		break;
 	}
 }
@@ -352,7 +356,7 @@ void SetIrqMode(uint32_t baseAddr, IrqMode irqMode, uint32_t irqRegister) {
 		reg32wor(baseAddr, irqRegister, IRQENABLE_OVF_EN_FLAG);
 		break;
 	case IrqMode_ALL:
-		reg32wor(baseAddr, irqRegister, IRQENABLE_OVF_EN_FLAG & IRQENABLE_MAT_EN_FLAG & IRQENABLE_TCAR_EN_FLAG);
+		reg32wor(baseAddr, irqRegister, IRQENABLE_OVF_EN_FLAG + IRQENABLE_MAT_EN_FLAG + IRQENABLE_TCAR_EN_FLAG);
 		break;
 	default:
 		break;
@@ -586,24 +590,23 @@ void TimerDelaySetup() {
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TTGR, SOC_DMTIMER_7_REGS)
 
 	//set one shot and no compare enabled
-	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ONESHOT_NOCMP_ENABLE);
+	//set compare enabled and auto reload
+	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_CE);
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
 
     /* Set the counter value */
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, SOC_DMTIMER_7_REGS)
     reg32w(SOC_DMTIMER_7_REGS, TIMER_TCRR, RESET_VALUE);
-#ifdef DELAY_USE_INTERRUPTS
+#if DELAY_USE_INTERRUPTS
 	//clear pending interrupts
 	reg32an(SOC_DMTIMER_7_REGS, TIMER_IRQSTATUS, TISR_ALL_FLAGS);
 
-	SetIrqWakeenMode(SOC_DMTIMER_7_REGS, IrqWakeen_MAT_WUP_ENA, TIMER_IRQWAKEEN);
-	SetIrqMode(SOC_DMTIMER_7_REGS, IrqMode_MATCH, TIMER_IRQENABLE_SET);
+	SetIrqWakeenMode(SOC_DMTIMER_7_REGS, IrqWakeen_ALL, TIMER_IRQWAKEEN);
+	SetIrqMode(SOC_DMTIMER_7_REGS, IrqMode_ALL, TIMER_IRQENABLE_SET);
 
     /* Registering DelayTimerIsr */
     IntRegister(SYS_INT_TINT7, DelayTimerIsr);
     /* Set the priority */
-	//configure interrupt routine
-	IntRegister(SYS_INT_TINT7, DelayTimerIsr);
     IntPrioritySet(SYS_INT_TINT7, 0, AINTC_HOSTINT_ROUTE_IRQ);
 	IntHandlerEnable(SYS_INT_TINT7);
 	IntResetRegister(SYS_INT_TINT7, ResetTimer7IrqStatus);
@@ -621,7 +624,7 @@ void TimerDelaySetup() {
  *         IsTimerElapsed functionality is in use.
  */
 void TimerDelayDelay(uint32_t milliSec) {
-#ifdef DELAY_USE_INTERRUPTS
+#if DELAY_USE_INTERRUPTS
 	uint32_t matchValue = milliSec * TIMER_FACTOR;
 
     SetDelayTimerCounterValue(RESET_VALUE);
@@ -634,9 +637,11 @@ void TimerDelayDelay(uint32_t milliSec) {
     EnableDelayTimer();
 
     while(FALSE == flagIsr);
-
     DisableDelayTimerInterrupts();
 
+    ShutdownDelayTimer();
+
+    SetDelayTimerCounterValue(RESET_VALUE);
 #else
     while(milliSec != 0)
     {
@@ -657,7 +662,7 @@ void TimerDelayDelay(uint32_t milliSec) {
  * \return  None.
  */
 void TimerDelayStart(uint32_t milliSec) {
-#ifdef DELAY_USE_INTERRUPTS
+#if DELAY_USE_INTERRUPTS
 	uint32_t matchValue = milliSec * TIMER_FACTOR;
 
     SetDelayTimerCounterValue(RESET_VALUE);
@@ -686,7 +691,7 @@ void TimerDelayStart(uint32_t milliSec) {
  */
 void TimerDelayStop() {
 	ShutdownDelayTimer();
-#ifdef DELAY_USE_INTERRUPTS
+#if DELAY_USE_INTERRUPTS
 	DisableDelayTimerInterrupts();
 #endif
 }
@@ -701,7 +706,7 @@ void TimerDelayStop() {
  * \NOTE  	delay functionality cannot be used till SysStopTimer is called.
  */
 uint32_t TimerDelayIsElapsed() {
-#ifdef DELAY_USE_INTERRUPTS
+#if DELAY_USE_INTERRUPTS
 
     return flagIsr;
 
@@ -740,7 +745,7 @@ void EnableDelayTimerInterrupts() {
 
 void DisableDelayTimerInterrupts() {
 	// Disable the interrupts
-    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_CLR, (IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG)));
+    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_CLR, IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG));
 }
 
 void SetDelayTimerCounterValue(uint32_t value) {

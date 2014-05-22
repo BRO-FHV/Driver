@@ -38,7 +38,7 @@ uint32_t EthConfigureWithDHCP() {
 }
 
 uint32_t ConfigureCore(uint32_t ip) {
-	LWIP_IF lwipIfPort;
+	LWIP_IF lwipIfPort1, lwipIfPort2;
 
 	#ifdef LWIP_CACHE_ENABLED
 		CacheEnable(CACHE_ALL);
@@ -50,7 +50,8 @@ uint32_t ConfigureCore(uint32_t ip) {
 	CPSWEVMPortMIIModeSelect();
 
 	// Get the MAC address
-	CPSWEVMMACAddrGet(0, lwipIfPort.macArray);
+	CPSWEVMMACAddrGet(0, lwipIfPort1.macArray);
+	CPSWEVMMACAddrGet(1, lwipIfPort2.macArray);
 
 	//Configure Interrupt handler
 	InterruptSetup();
@@ -58,18 +59,20 @@ uint32_t ConfigureCore(uint32_t ip) {
 	TimerDelaySetup();
 
 	if (ip) {
-		lwipIfPort.ipMode = IPADDR_USE_STATIC;
+		lwipIfPort1.ipMode = IPADDR_USE_STATIC;
 	} else {
-		lwipIfPort.ipMode = IPADDR_USE_DHCP;
+		lwipIfPort1.ipMode = IPADDR_USE_DHCP;
 	}
 
-	lwipIfPort.instNum = 0;
-	lwipIfPort.slvPortNum = 1;
-	lwipIfPort.ipAddr = ip;
-	lwipIfPort.netMask = 0xFFFFFF00u;//0xFFFFFF00u => 255.255.255.0
-	lwipIfPort.gwAddr = 0xC0A80064u; //0xC0A80064u => 192.168.0.1
+	lwipIfPort1.instNum = 0;
+	lwipIfPort1.slvPortNum = 1;
+	lwipIfPort1.ipAddr = ip;
+    lwipIfPort1.netMask = 0;
+    lwipIfPort1.gwAddr = 0;
+//	lwipIfPort1.netMask = 0xFFFFFF00u;//0xFFFFFF00u => 255.255.255.0
+//	lwipIfPort1.gwAddr = 0xC0A80064u; //0xC0A80064u => 192.168.0.1
 
-	uint32_t ipAddr = (uint32_t)lwIPInit(&lwipIfPort);
+	uint32_t ipAddr = (uint32_t)lwIPInit(&lwipIfPort1);
 	printf("\n\rUsing IP-Addr: %d.%d.%d.%d\n\r", (ipAddr & 0xFF), ((ipAddr >> 8) & 0xFF), ((ipAddr >> 16) & 0xFF), ((ipAddr >> 24) & 0xFF));
 
 	return ipAddr;

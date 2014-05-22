@@ -149,6 +149,5 @@ uint32_t IntActiveIrqNumGet(void);
 unsigned int IntMasterStatusGet(void);
 void IntMasterIRQEnable(void);
 void IntMasterIRQDisable(void);
-void IntSystemEnable(uint32_t intrNum);
 
 #endif /* INTERRUPT_H_ */
