@@ -65,10 +65,12 @@ void SetIrqWakeenMode(uint32_t baseAddr, IrqWakeen irqwakeen, uint32_t irqWakeen
 void SetIrqMode(uint32_t baseAddr, IrqMode irqMode, uint32_t irqRegister);
 
 void EnablePostedMode(uint32_t baseAddr, uint32_t tsicr);
-void EnableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps);
+void EnableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps, uint32_t tcrr);
 void DisableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps);
 void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t tcrr, uint32_t tsicr, uint32_t twps);
 void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t twer, uint32_t tier, uint32_t tsicr, uint32_t twps);
+void ToggleSTVal(uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps);
+void ResetTCRRRegister(uint32_t baseAddr, uint32_t tcrr, uint32_t tsicr, uint32_t twps);
 
 uint32_t IsClockModuleTimerEnabled(Timer timer);
 void ClockModuleEnable(Timer timer);
@@ -92,36 +94,130 @@ void ResetTimerIrqStatusCore(uint32_t baseAddr, uint32_t tisr, uint32_t tsicr, u
  */
 int32_t TimerEnable(Timer timer) {
 	if (1 == timers[timer]) {
-		return -1; //already enabled
+		return false; //already enabled
 	}
 
 	uint32_t baseAddr = GetTimerBaseAddr(timer);
 
 	if (UINT32_MAX == baseAddr) {
-		return -1; //timer does not exist
+		return false; //timer does not exist
 	}
-
-	uint32_t tcrr = 1 == timer ? TIMER1_TCRR : TIMER_TCRR;
-
-	//reset counter register
-	reg32wor(baseAddr, tcrr, RESET_VALUE);
 
 	if (1 == timer) {
-		EnableCore(timer, baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
+		EnableCore(timer, baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS, TIMER1_TCRR);
 	} else {
-		EnableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+		EnableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS, TIMER_TCRR);
 	}
 
-	return 0;
+	return true;
 }
 
-void EnableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps) {
+void EnableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps, uint32_t tcrr) {
+	//reset counter register
+	reg32wor(baseAddr, tcrr, RESET_VALUE);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCRR, baseAddr);
+
 	//turn on timer
 	reg32wor(baseAddr, tclr, TCLR_ST);
 	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
 
 	//set to enabled
 	timers[timer] = 1;
+}
+
+/**
+ * \brief Pausing the timer - does not effect the current count value
+ *
+ * \param timer Timer that should be paused.
+ *
+ * \return 0 on success, -1 on failure
+ */
+int32_t TimerPause(Timer timer) {
+	if (0 == timers[timer]) {
+		return false; //not enabled
+	}
+
+	uint32_t baseAddr = GetTimerBaseAddr(timer);
+
+	if (UINT32_MAX == baseAddr) {
+		return false; //timer does not exist
+	}
+
+	if (1 == timer) {
+		ToggleSTVal(baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
+	} else {
+		ToggleSTVal(baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+	}
+
+	return true;
+}
+
+/**
+ * \brief Continue the previously paused timer.
+ *
+ * \param timer Timer that should be continued.
+ *
+ * \return 0 on success, -1 on failure
+ */
+int32_t TimerContinue(Timer timer) {
+	if (0 == timers[timer]) {
+		return false; //not enabled
+	}
+
+	uint32_t baseAddr = GetTimerBaseAddr(timer);
+
+	if (UINT32_MAX == baseAddr) {
+		return false; //timer does not exist
+	}
+
+	if (1 == timer) {
+		ToggleSTVal(baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
+	} else {
+		ToggleSTVal(baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+	}
+
+	return true;
+}
+
+/**
+ * \brief Stops the timer and also resets the current count value
+ *
+ * \param timer Timer that should be stopped and reseted.
+ *
+ * \return 0 on success, -1 on failure
+ */
+int32_t TimerStop(Timer timer) {
+	if (0 == timers[timer]) {
+		return false; //not enabled
+	}
+
+	uint32_t baseAddr = GetTimerBaseAddr(timer);
+
+	if (UINT32_MAX == baseAddr) {
+		return false; //timer does not exist
+	}
+
+	if (1 == timer) {
+		ToggleSTVal(baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
+		ResetTCRRRegister(baseAddr, TIMER1_TCRR, TIMER1_TSICR, TIMER1_TWPS);
+	} else {
+		ToggleSTVal(baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+		ResetTCRRRegister(baseAddr, TIMER_TCRR, TIMER1_TSICR, TIMER1_TWPS);
+	}
+
+	return true;
+}
+
+void ResetTCRRRegister(uint32_t baseAddr, uint32_t tcrr, uint32_t tsicr, uint32_t twps) {
+	//reset timer counting register
+	reg32wor(baseAddr, tcrr, RESET_VALUE);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCRR, baseAddr);
+}
+
+void ToggleSTVal(uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps) {
+	//turn on/off timer
+	reg32wxor(baseAddr, tclr, TCLR_ST);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
 }
 
 /**
@@ -133,13 +229,13 @@ void EnableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, u
  */
 int32_t TimerDisable(Timer timer) {
 	if (0 == timers[timer]) {
-		return -1; //already disabled
+		return false; //already disabled
 	}
 
 	uint32_t baseAddr = GetTimerBaseAddr(timer);
 
 	if (UINT32_MAX == baseAddr) {
-		return -1; //failure
+		return false; //failure
 	}
 
 	if (1 == timer) {
@@ -148,7 +244,7 @@ int32_t TimerDisable(Timer timer) {
 		DisableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
 	}
 
-	return 0;
+	return true;
 }
 
 void DisableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps) {
@@ -176,7 +272,7 @@ int32_t TimerReset(Timer timer) {
 	uint32_t baseAddr = GetTimerBaseAddr(timer);
 
 	if (UINT32_MAX == baseAddr) {
-		return -1; //failure
+		return false; //failure
 	}
 
 	//reset registers
@@ -186,7 +282,7 @@ int32_t TimerReset(Timer timer) {
 		ResetCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
 	}
 
-	return 0;
+	return true;
 }
 
 void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t tcrr, uint32_t tsicr, uint32_t twps) {
@@ -221,13 +317,13 @@ void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, u
  */
 int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine routine) {
 	if (1 == timers[timer] || NULL == routine) {
-		return -1; //timer is already enabled or routine is not set
+		return false; //timer is already enabled or routine is not set
 	}
 
 	uint32_t baseAddr = GetTimerBaseAddr(timer);
 
 	if (UINT32_MAX == baseAddr) {
-		return -1; //failure
+		return false; //failure
 	}
 
 	if (1 == timer) {
@@ -244,7 +340,7 @@ int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine 
 		//TMAR should be less than 0xFFFF FFFF
 		uint32_t matchValue = milliseconds * TIMER_FACTOR;
 		if(UINT32_MAX == matchValue || 0 >= matchValue) {
-			return -1;
+			return false;
 		}
 
 		//timer 2 - 7
@@ -268,7 +364,7 @@ int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine 
 	IntHandlerEnable(irqCode);
 	IntResetRegister(irqCode, GetResetTimerFunc(timer));
 
-	return 0;
+	return true;
 }
 
 void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t twer, uint32_t tier, uint32_t tsicr, uint32_t twps) {
