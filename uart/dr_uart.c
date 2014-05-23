@@ -53,7 +53,7 @@ static uint32_t UartWriteChunk(uint32_t baseAddr);
 
 // interrupt
 uint32_t UartIntIdentityGet(uint32_t baseAdd);
-void UartInterrupt(void);
+void UartInterrupt();
 
 typedef struct WriteChunk {
 	uint32_t size;
@@ -259,7 +259,7 @@ static uint32_t UartWriteChunk(uint32_t baseAddr) {
 
 	if (txEmptyFlag == TRUE) {
 		// TODO get back!
-		wChunk_t* chunk = (wChunk_t*) LinkedListGetBack(chunkList);
+		wChunk_t* chunk = (wChunk_t*) LinkedListGetFront(chunkList);
 		if (chunk != NULL) {
 			char* pBuffer = chunk->message;
 
@@ -324,7 +324,7 @@ Boolean UartAvailable(unsigned int baseAddr) {
 /**
  * \brief handles uart interrupt
  */
-void UartInterrupt(void) {
+void UartInterrupt() {
 	uint32_t intId = UartIntIdentityGet(SOC_UART_0_REGS);
 	char rxByte;
 
