@@ -45,7 +45,7 @@
 #define RESET_VALUE						0x00
 #define DELAY_USE_INTERRUPTS 			0
 
-static volatile tBoolean flagIsr = 1;
+static volatile Boolean flagIsr = 1;
 static uint16_t timers[NUMBER_OF_TIMERS];
 static const uint8_t TIMER_FACTOR = 32;
 
