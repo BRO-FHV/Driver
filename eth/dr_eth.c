@@ -56,8 +56,6 @@ uint32_t ConfigureCore(uint32_t ip) {
 	//Configure Interrupt handler
 	InterruptSetup();
 
-	TimerDelaySetup();
-
 	if (ip) {
 		lwipIfPort1.ipMode = IPADDR_USE_STATIC;
 	} else {

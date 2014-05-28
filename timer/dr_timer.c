@@ -43,14 +43,14 @@
 #define TIMER_1MS_COUNT                 (0x5DC0u)
 #define NUMBER_OF_TIMERS				8
 #define RESET_VALUE						0x00
-#define DELAY_USE_INTERRUPTS 			0
+#define DELAY_USE_INTERRUPTS 			1
 
 static volatile Boolean flagIsr = 1;
 static uint16_t timers[NUMBER_OF_TIMERS];
 static const uint8_t TIMER_FACTOR = 32;
 
 typedef enum {
-	IrqMode_MATCH = 0, IrqMode_OVERFLOW, IrqMode_CAPTURE, IrqMode_ALL
+	IrqMode_MATCH = 0, IrqMode_OVERFLOW, IrqMode_CAPTURE, IrqMode_ALL, IqrMode_OFF
 } IrqMode;
 
 typedef enum {
@@ -86,7 +86,7 @@ void ResetTimer4IrqStatus();
 void ResetTimer5IrqStatus();
 void ResetTimer6IrqStatus();
 void ResetTimer7IrqStatus();
-void ResetTimerCore(uint32_t baseAddr, uint32_t tisr);
+void ResetTimerIrqStatusCore(uint32_t baseAddr, uint32_t tisr);
 
 void ShutdownDelayTimer();
 void EnableDelayTimerInterrupts();
@@ -229,7 +229,7 @@ void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, u
 	reg32wor(baseAddr, tcrr, RESET_VALUE);
 	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCRR, baseAddr);
 
-	ResetTimerCore(baseAddr, tisr);
+	ResetTimerIrqStatusCore(baseAddr, tisr);
 }
 
 /**
@@ -302,9 +302,6 @@ void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t
 	reg32wor(baseAddr, tldr, 0x00);
 	WaitForWrite(tsicr, twps, TWPS_W_PEND_TLDR, baseAddr)
 
-	//clear pending interrupts
-	reg32an(baseAddr, tisr, TISR_ALL_FLAGS);
-
 	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
 	//Reload will be done regardless of the AR field value of TCLR register.
 	reg32wor(baseAddr, ttgr, RESET_VALUE);
@@ -316,6 +313,9 @@ void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t
 
 	SetIrqWakeenMode(baseAddr, IrqWakeen_MAT_WUP_ENA, twer);
 	SetIrqMode(baseAddr, IrqMode_MATCH, tier);
+
+	//clear pending interrupts
+	ResetTimerIrqStatusCore(baseAddr, tisr);
 }
 
 void EnablePostedMode(uint32_t baseAddr, uint32_t tsicr) {
@@ -357,6 +357,9 @@ void SetIrqMode(uint32_t baseAddr, IrqMode irqMode, uint32_t irqRegister) {
 		break;
 	case IrqMode_ALL:
 		reg32wor(baseAddr, irqRegister, IRQENABLE_OVF_EN_FLAG + IRQENABLE_MAT_EN_FLAG + IRQENABLE_TCAR_EN_FLAG);
+		break;
+	case IqrMode_OFF:
+		reg32w(baseAddr, irqRegister, 0);
 		break;
 	default:
 		break;
@@ -427,36 +430,36 @@ uint32_t GetTimerInterruptCode(Timer timer) {
 }
 
 void ResetTimer1IrqStatus() {
-	ResetTimerCore(SOC_DMTIMER_1_REGS, TIMER1_TISR);
+	ResetTimerIrqStatusCore(SOC_DMTIMER_1_REGS, TIMER1_TISR);
 }
 
 void ResetTimer2IrqStatus() {
-	ResetTimerCore(SOC_DMTIMER_2_REGS, TIMER_IRQSTATUS);
+	ResetTimerIrqStatusCore(SOC_DMTIMER_2_REGS, TIMER_IRQSTATUS);
 }
 
 void ResetTimer3IrqStatus() {
-	ResetTimerCore(SOC_DMTIMER_3_REGS, TIMER_IRQSTATUS);
+	ResetTimerIrqStatusCore(SOC_DMTIMER_3_REGS, TIMER_IRQSTATUS);
 }
 
 void ResetTimer4IrqStatus() {
-	ResetTimerCore(SOC_DMTIMER_4_REGS, TIMER_IRQSTATUS);
+	ResetTimerIrqStatusCore(SOC_DMTIMER_4_REGS, TIMER_IRQSTATUS);
 }
 
 void ResetTimer5IrqStatus() {
-	ResetTimerCore(SOC_DMTIMER_5_REGS, TIMER_IRQSTATUS);
+	ResetTimerIrqStatusCore(SOC_DMTIMER_5_REGS, TIMER_IRQSTATUS);
 }
 
 void ResetTimer6IrqStatus() {
-	ResetTimerCore(SOC_DMTIMER_6_REGS, TIMER_IRQSTATUS);
+	ResetTimerIrqStatusCore(SOC_DMTIMER_6_REGS, TIMER_IRQSTATUS);
 }
 
 void ResetTimer7IrqStatus() {
-	ResetTimerCore(SOC_DMTIMER_7_REGS, TIMER_IRQSTATUS);
+	ResetTimerIrqStatusCore(SOC_DMTIMER_7_REGS, TIMER_IRQSTATUS);
 }
 
-void ResetTimerCore(uint32_t baseAddr, uint32_t tisr) {
+void ResetTimerIrqStatusCore(uint32_t baseAddr, uint32_t tisr) {
 	//clear all pending interrupt flags
-	reg32an(baseAddr, tisr, TISR_ALL_FLAGS);
+	reg32w(baseAddr, tisr, TISR_ALL_FLAGS);
 }
 
 uint32_t IsClockModuleTimerEnabled(Timer timer) {
@@ -598,11 +601,11 @@ void TimerDelaySetup() {
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, SOC_DMTIMER_7_REGS)
     reg32w(SOC_DMTIMER_7_REGS, TIMER_TCRR, RESET_VALUE);
 #if DELAY_USE_INTERRUPTS
-	//clear pending interrupts
-	reg32an(SOC_DMTIMER_7_REGS, TIMER_IRQSTATUS, TISR_ALL_FLAGS);
-
 	SetIrqWakeenMode(SOC_DMTIMER_7_REGS, IrqWakeen_ALL, TIMER_IRQWAKEEN);
 	SetIrqMode(SOC_DMTIMER_7_REGS, IrqMode_ALL, TIMER_IRQENABLE_SET);
+
+	//clear pending interrupts
+	ResetTimer7IrqStatus();
 
     /* Registering DelayTimerIsr */
     IntRegister(SYS_INT_TINT7, DelayTimerIsr);
@@ -724,9 +727,9 @@ uint32_t TimerDelayIsElapsed() {
 
 static void DelayTimerIsr()
 {
-	ResetTimer7IrqStatus();
-
 	ShutdownDelayTimer();
+
+	ResetTimer7IrqStatus();
 
     flagIsr = TRUE;
 }
@@ -740,12 +743,14 @@ void ShutdownDelayTimer() {
 
 void EnableDelayTimerInterrupts() {
     // Enable the interrupts
-    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_SET, IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG));
+//    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_SET, IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG));
+	SetIrqMode(SOC_DMTIMER_7_REGS, IrqMode_ALL, TIMER_IRQENABLE_SET);
 }
 
 void DisableDelayTimerInterrupts() {
 	// Disable the interrupts
-    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_CLR, IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG));
+//    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_CLR, IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG));
+	SetIrqMode(SOC_DMTIMER_7_REGS, IqrMode_OFF, TIMER_IRQENABLE_SET);
 }
 
 void SetDelayTimerCounterValue(uint32_t value) {
@@ -763,11 +768,13 @@ void SetDelayTimerMatchValue(uint32_t value) {
 }
 
 void EnableDelayTimer() {
+    /* Wait for previous write to complete */
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
 
 	//turn on timer
 	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ST);
 
+    /* Wait for previous write to complete */
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
 }
 
@@ -777,6 +784,9 @@ void DisableDelayTimer() {
 
     /* Stop the timer */
 	reg32an(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ST);
+
+    /* Wait for previous write to complete */
+	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS);
 }
 
 uint32_t GetDelayTimerCounterValue() {
