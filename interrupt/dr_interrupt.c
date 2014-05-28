@@ -20,6 +20,8 @@ intResetHandler intIrqResetHandlers[NUM_INTERRUPTS];
 static void IntDefaultHandler(void);
 static void IntDefaultResetHandler(void);
 
+extern unsigned int CPUIntStatus(void);
+
 void IntControllerInit(void) {
 	uint32_t intNum;
 
@@ -123,14 +125,23 @@ uint32_t IntActiveIrqNumGet(void) {
  **/
 uint32_t IntMasterStatusGet(void)
 {
-    uint32_t stat;
-
-    //TODO REVIEW
-    /* IRQ and FIQ in CPSR */
-    //asm("    mrs     r0, CPSR and %[result], r0, #0xC0" : [result] "=r" (stat));
+    uint32_t stat = CPUIntStatus();
 
     return stat;
 }
+
+/*
+**
+** Wrapper function for the IRQ status
+**
+*/
+__asm("    .sect \".text:CPUIntStatus\"\n"
+          "    .clink\n"
+          "    .global CPUIntStatus\n"
+          "CPUIntStatus:\n"
+          "    mrs     r0, CPSR \n"
+          "    and     r0, r0, #0xC0\n"
+          "    bx      lr");
 
 /**
  * \brief  Enables the processor IRQ only in CPSR. Makes the processor to
