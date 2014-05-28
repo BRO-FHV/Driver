@@ -175,6 +175,13 @@ irq_handler:
 	LDR		pc, [r0, r2, lsl #2]		; jump to interrupt handler
 
 	;
+	; read active IRQ number
+	;
+	LDR		r1, ADDR_SIR_IRQ			; store IRQ status registe in r1
+	LDR		r2, [r1, #0]				; load value from ram (address in r1 + offset 0)
+	AND		r2, r2, #MASK_ACTIVE_IRQ	; mask active IRQ number
+
+	;
 	; reset interrupt flags
 	;
 	LDR		r0, _intIrqResetHandlers	; load base of interrupt handler (implemented in interrupt.c)
