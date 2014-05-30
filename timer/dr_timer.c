@@ -616,6 +616,10 @@ void TimerDelaySetup() {
 #endif
 }
 
+#define TIMER_INITIAL_COUNT             (0xFFFFA23Fu)
+#define TIMER_1MS_COUNT                 (0x5DC0u)
+#define TIMER_OVERFLOW                  (0xFFFFFFFFu)
+
 /**
  * \brief   This function generates a delay of specified milli-seconds.
  *
@@ -628,10 +632,12 @@ void TimerDelaySetup() {
  */
 void TimerDelayDelay(uint32_t milliSec) {
 #if DELAY_USE_INTERRUPTS
-	uint32_t matchValue = milliSec * TIMER_FACTOR;
-
-    SetDelayTimerCounterValue(RESET_VALUE);
-    SetDelayTimerMatchValue(matchValue);
+//	uint32_t matchValue = milliSec * TIMER_FACTOR;
+//
+//    SetDelayTimerCounterValue(RESET_VALUE);
+//    SetDelayTimerMatchValue(matchValue);
+    uint32_t countVal = TIMER_OVERFLOW - (milliSec * TIMER_1MS_COUNT);
+    SetDelayTimerCounterValue(countVal);
 
     flagIsr = FALSE;
 

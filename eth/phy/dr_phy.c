@@ -289,8 +289,7 @@ unsigned int PhyAutoNegotiate(unsigned int mdioBaseAddr, unsigned int phyAddr,
     anar = 0;
     MDIOPhyRegRead(mdioBaseAddr, phyAddr, PHY_1000BT_CONTROL, &anar);
     anar &= ~PHY_GIG_ADV_VAL_MASK;
-    MDIOPhyRegWrite(mdioBaseAddr, phyAddr, PHY_1000BT_CONTROL,
-                    (anar |(*gigAdvPtr)));
+    MDIOPhyRegWrite(mdioBaseAddr, phyAddr, PHY_1000BT_CONTROL, (anar |(*gigAdvPtr)));
 
     data |= PHY_AUTONEG_RESTART;
 

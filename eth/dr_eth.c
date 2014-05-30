@@ -23,9 +23,12 @@ void InterruptSetup();
  * \brief   Configure the ethernet port with a ip.
  *
  * \param   ip		For Example IP Address 192.168.0.7 use the corresponding hex value 0xC0A80007
+ *
+ * \return	IF setting the IP was successful the IP is returned, 0 otherwise.
+ *
  **/
-void EthConfigureWithIP(uint32_t ip) {
-	ConfigureCore(ip);
+uint32_t EthConfigureWithIP(uint32_t ip) {
+	return ConfigureCore(ip);
 }
 
 /**
@@ -71,7 +74,14 @@ uint32_t ConfigureCore(uint32_t ip) {
 //	lwipIfPort1.gwAddr = 0xC0A80064u; //0xC0A80064u => 192.168.0.1
 
 	uint32_t ipAddr = (uint32_t)lwIPInit(&lwipIfPort1);
-	printf("\n\rUsing IP-Addr: %d.%d.%d.%d\n\r", (ipAddr & 0xFF), ((ipAddr >> 8) & 0xFF), ((ipAddr >> 16) & 0xFF), ((ipAddr >> 24) & 0xFF));
+
+	if(0 == ipAddr) {
+		printf("\n\rUnable to get IP-Address!");
+
+
+	} else {
+		printf("\n\rUsing IP-Addr: %d.%d.%d.%d\n\r", (ipAddr & 0xFF), ((ipAddr >> 8) & 0xFF), ((ipAddr >> 16) & 0xFF), ((ipAddr >> 24) & 0xFF));
+	}
 
 	return ipAddr;
 }

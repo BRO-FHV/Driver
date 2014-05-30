@@ -4,7 +4,7 @@
  *
  * Created on: 04.04.2014
  * Description: 
- * TODO
+ * Interface that gains access to the ethernet controller.
  */
 
 #ifndef DR_ETH_H_
@@ -12,7 +12,7 @@
 
 #include <inttypes.h>
 
-void EthConfigureWithIP(uint32_t ip);
+uint32_t EthConfigureWithIP(uint32_t ip);
 uint32_t EthConfigureWithDHCP();
 
 #endif /* DR_ETH_H_ */

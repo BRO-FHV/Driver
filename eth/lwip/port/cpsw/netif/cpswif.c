@@ -1335,7 +1335,7 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
   if (PhyConfigure(cpswinst->mdio_base, cpswinst->port[port_num -1].phy_addr,
                    speed_val, duplex_val)) {
     while (frc_stat_cnt) {
-      TimerDelayDelay(1000); //default: 50
+      TimerDelayDelay(50); //default: 50
       frc_stat = PhyLinkStatusGet(cpswinst->mdio_base,
                            cpswinst->port[port_num - 1].phy_addr, 1000);
 
@@ -1427,13 +1427,10 @@ cpswif_autoneg_config(u32_t inst_num, u32_t port_num) {
    * Now start Autonegotiation. PHY will talk to its partner
    * and give us what the partner can handle
    */
-  if(PhyAutoNegotiate(cpswinst->mdio_base,
-                      cpswinst->port[port_num -1].phy_addr,
-                      &adv_val, &gig_adv_val) == TRUE) {
+  if(PhyAutoNegotiate(cpswinst->mdio_base, cpswinst->port[port_num -1].phy_addr,  &adv_val, &gig_adv_val) == TRUE) {
     while(aut_neg_cnt) {
-      TimerDelayDelay(50); //default 50
-      auto_stat = PhyAutoNegStatusGet(cpswinst->mdio_base,
-                                      cpswinst->port[port_num -1].phy_addr);
+      TimerDelayDelay(1000); //default 50
+      auto_stat = PhyAutoNegStatusGet(cpswinst->mdio_base, cpswinst->port[port_num -1].phy_addr);
       if(TRUE == auto_stat) {
         break;
       }
@@ -1756,8 +1753,7 @@ cpswif_phylink_config(struct cpswportif * cpswif, u32_t slv_port_num) {
   err = (err_t)(cpswif_autoneg_config(cpswif->inst_num, slv_port_num));
 
   /* Check if PHY link is there or not */
-  if(FALSE == ((PhyLinkStatusGet(cpswinst->mdio_base,
-                           cpswinst->port[slv_port_num - 1].phy_addr, 1000)))) {
+  if(FALSE == ((PhyLinkStatusGet(cpswinst->mdio_base, cpswinst->port[slv_port_num - 1].phy_addr, 1000)))) {
     LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Instance %d.", slv_port_num, cpswif->inst_num);
     return ERR_CONN;
   }
@@ -1804,8 +1800,7 @@ cpswif_port_init(struct netif *netif) {
 
 #ifdef CPSW_DUAL_MAC_MODE
   /* Set the ethernet address for the port */
-  CPSWPortSrcAddrSet(cpswinst->port[curr_port - 1].port_base,
-                    (u8_t *)(&(cpswif->eth_addr)));
+  CPSWPortSrcAddrSet(cpswinst->port[curr_port - 1].port_base, (u8_t *)(&(cpswif->eth_addr)));
 
   /**
    * For Dual Mac mode, configure port0 and port1 for one VLAN ID;
@@ -1814,8 +1809,7 @@ cpswif_port_init(struct netif *netif) {
    */
   CPSWPortVLANConfig(cpswinst->port[curr_port - 1].port_base, curr_port, 0, 0);
 
-  cpswif_port_to_host_vlan_cfg(cpswinst, curr_port,
-                               (u8_t *)(&(cpswif->eth_addr)));
+  cpswif_port_to_host_vlan_cfg(cpswinst, curr_port, (u8_t *)(&(cpswif->eth_addr)));
 
   err = cpswif_phylink_config(cpswif, curr_port);
 
