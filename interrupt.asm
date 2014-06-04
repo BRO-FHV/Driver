@@ -116,27 +116,12 @@ irq_handler:
 	;	+ SPSR	= saved program status register
 	; 	+ LR	= link register
 	;
-	SUB		r14, r14, #4				; lr correction ???
-	STMFD	r13!, {r0-r3, r12, r14}		; backup user context in irq stack
-	MRS		r12, spsr					; copy SPSR
-	STMFD	r13!, {r12}					; backup SPSR in irq stack
-
-	;
-	; backup IRQ threshold value
-	;	+ threshold 	= ???
-	;	+ irq threshold	= ???
-	;
-	;LDR		r0, ADDR_THRESHOLD			; store IRQ threshold address in r0
-	;LDR		r1, [r0, #0]				; load value from ram (address in r0 + offset 0)
-	;STMFD		r13!, {r1}					; backup the threshold value in irq stack
-
-	;
-	; set IRQ priority as threshold value
-	;	+ irq priority	= ???
-	;
-	;LDR		r2, ADDR_IRQ_PRIORITY   	; store IRQ priority address in r2
-	;LDR		r3, [r2, #0]				; load value from ram (address in r2 + offset 0)
-	;STR		r3, [r0, #0]				; set the priority as threshold
+	STMFD	SP, { R0 - R14 }^			; backup user context in irq stack
+	SUB		SP, SP, #60					; LR correction
+	STMFD	SP!, { LR }					; store LR in stack
+	MRS		r1, spsr					; copy SPSR
+	STMFD	SP!, {r1}					; backup SPSR in stack
+	MOV 	R0, SP						; ??? pointer to SP in R0, to point to Context-struct
 
 	;
 	; read active IRQ number
@@ -146,33 +131,15 @@ irq_handler:
 	AND		r2, r2, #MASK_ACTIVE_IRQ	; mask active IRQ number
 
 	;
-	; check priotity not equal zero
-	; ???
-	;
-	;CMP		r3, #0						; check priotity is zero
-	;STRNE	r0, [r1]					; if priority > 0 , acknowledge INTC
-	;DSB									; wait for acknowledge
-
-	;
-	; switch to system mode and
-	; enable other IRQ if priority allows it
-	;
-	;MRS		r14, cpsr					; read cpsr in r14
-	;ORR		r14, r14, #MASK_SYS_MODE	; mask system mode
-	;BICNE	r14, r14, #MASK_I_BIT		; enable IRQ if priority > 0
-	;MSR		cpsr_cxsf, r14				; store cpsr back
-	;DSB									; wait for acknowledge to ensure system mode
-
-	;
 	; start interrupt handler
 	;	+ r2	= contains active IRQ number
 	;	+ r14	= link register
 	;	+ pc	= program counter
 	;
-	STMFD	r13!, {r14}					; backup user link register
-	LDR		r0, _intIrqHandlers			; load base of interrupt handler (implemented in interrupt.c)
+	;STMFD	r13!, {r14}					; backup user link register
+	LDR		r3, _intIrqHandlers			; load base of interrupt handler (implemented in interrupt.c)
 	ADD		r14, pc, #0					; save return address in link register (return point)
-	LDR		pc, [r0, r2, lsl #2]		; jump to interrupt handler
+	LDR		pc, [r3, r2, lsl #2]		; jump to interrupt handler
 
 	;
 	; read active IRQ number
@@ -184,37 +151,30 @@ irq_handler:
 	;
 	; reset interrupt flags
 	;
-	LDR		r0, _intIrqResetHandlers	; load base of interrupt handler (implemented in interrupt.c)
+	LDR		r3, _intIrqResetHandlers	; load base of interrupt handler (implemented in interrupt.c)
 	ADD		r14, pc, #0					; save return address in link register (return point)
-	LDR		pc, [r0, r2, lsl #2]		; jump to interrupt handler
+	LDR		pc, [r3, r2, lsl #2]		; jump to interrupt handler
 
 	;
 	; enable IRQ generation
 	;
-	MOV		r0, #MASK_NEW_IRQ			; load mask for new IRQ generation in r0
-	LDR		r1, ADDR_CONTROL			; load address for interrupt control register in r1
-	STR		r0, [r1, #0]				; store content of r2 in RAM address in r1 + offset 0
+	MOV		r3, #MASK_NEW_IRQ			; load mask for new IRQ generation in r0
+	LDR		r4, ADDR_CONTROL			; load address for interrupt control register in r1
+	STR		r3, [r4, #0]				; store content of r2 in RAM address in r1 + offset 0
 
 	;
-	; restore user link register
+	; TODO change comments
 	;
-	LDMFD	r13!, {r14}					; Restore lr_usr
+	LDMFD	SP!, { R1 }					; restore SPSR, if changed by scheduler
+	MSR		SPSR_cxsf, R1				; set stored cpsr from user to the current CPSR - will be restored later during SUBS
 
-	;
-	; disable IRQ and change back to IRQ mode
-	;
-	;CPSID	i, #MASK_IRQ_MODE
+	LDMFD	SP!, { LR }					; restore LR, if changed by scheduler
 
-	;
-	; restore backuped values
-	;
-	;LDR		r0, ADDR_THRESHOLD			; load IRQ threshold
-	;LDR		r1, [r0, #0]				; load threshold register from RAM
-	;LDMFD	r13!, {r1}					; ???
-	;STR		r1, [r0, #0]				; restore the threshold value
-	LDMFD	r13!, {r12}					; get spsr
-	MSR		spsr_cxsf, r12				; restore spsr
-	LDMFD	r13!, {r0-r3, r12, pc}^		; restore the context and return
+	LDMFD	SP, { R0 - R14 }^			; restore user-registers, if changed by scheduler
+	ADD		SP, SP, #60					; increment stack-pointer: 15 * 4 bytes = 60bytes
+
+ 	; TODO: when a process-switch was performed: MOVS	PC, LR should be enough, otherwise we must return to the instruction which was canceled by IRQ thus using SUBS
+ 	SUBS	PC, LR, #4					; return from IRQ
 
 ;
 ; SWI handler function definition

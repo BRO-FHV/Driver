@@ -109,6 +109,8 @@ void InterruptSetup() {
  ** Interrupt Handler for receive interrupt
  */
 void CPSWCore0RxIsr() {
+	asm("	CPS		0x1F");
+
 	lwIPRxIntHandler(0);
 }
 

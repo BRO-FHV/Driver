@@ -1255,10 +1255,9 @@ cpswif_phy_autoneg(struct cpswinst *cpswinst, u32_t port_num, u32_t adv) {
     return linkstat;
   }
 
-  LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.", port_num, 0);
+  //LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.", port_num, 0);
 
-  CPSWSlRGMIIEnable(
-                  cpswinst->port[port_num - 1].sliver_base);
+  CPSWSlRGMIIEnable(cpswinst->port[port_num - 1].sliver_base);
 
   return linkstat;
 }
@@ -1348,7 +1347,7 @@ cpswif_phy_forced(struct cpswinst *cpswinst, u32_t port_num, u32_t speed,
     if (0 != frc_stat_cnt) {
       linkstat = ERR_OK;
       LWIP_PRINTF("\n\rPhy Configuration Successful.");
-      LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.", port_num, 0);
+      //LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.", port_num, 0);
     } else {
       LWIP_PRINTF("\n\rPhy Configuration Successful.");
       LWIP_PRINTF("\n\rPHY link connectivity failed for Port %d of Inst %d.", port_num, 0);
@@ -1758,7 +1757,7 @@ cpswif_phylink_config(struct cpswportif * cpswif, u32_t slv_port_num) {
     return ERR_CONN;
   }
 
-  LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.", slv_port_num, cpswif->inst_num);
+  //LWIP_PRINTF("\n\rPHY link verified for Port %d of Instance %d.", slv_port_num, cpswif->inst_num);
 
   CPSWSlRGMIIEnable(cpswinst->port[slv_port_num - 1].sliver_base);
 
@@ -2062,8 +2061,7 @@ cpswif_rx_inthandler(u32_t inst_num, struct netif * netif_arr) {
    * Process the receive buffer descriptors. When the DMA completes
    * reception, OWNERSHIP flag will be cleared.
    */
-  while((curr_bd->flags_pktlen & CPDMA_BUF_DESC_OWNER)
-           != CPDMA_BUF_DESC_OWNER) {
+  while((curr_bd->flags_pktlen & CPDMA_BUF_DESC_OWNER) != CPDMA_BUF_DESC_OWNER) {
 
 #ifdef CPSW_DUAL_MAC_MODE
     /**

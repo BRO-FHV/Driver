@@ -154,7 +154,8 @@ static void lwIPDHCPComplete(unsigned int ifNum)
 
     while(dhcpTries--)
     {
-        LWIP_PRINTF("\n\rDHCP Trial %d...", (NUM_DHCP_TRIES - dhcpTries));
+        LWIP_PRINTF("\n\rDHCP Trial ...");
+
         dhcp_start(&cpswNetIF[ifNum]);
 
         cnt = LWIP_DHCP_TIMEOUT;
