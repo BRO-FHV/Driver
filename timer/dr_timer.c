@@ -533,6 +533,10 @@ uint32_t GetTimerInterruptCode(Timer timer) {
 	}
 }
 
+void ResetTimer1IrqStatus() {
+	// FIXME ???
+}
+
 void ResetTimer2IrqStatus() {
 	ResetTimerIrqStatusCore(SOC_DMTIMER_2_REGS, TIMER_IRQSTATUS, TIMER_TSICR, TIMER_TCRR, TIMER_TWPS, TIMER_TTGR);
 }
