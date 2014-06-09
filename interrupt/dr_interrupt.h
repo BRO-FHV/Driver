@@ -137,8 +137,7 @@ typedef void (*intHandler)(void);
 typedef void (*intResetHandler)(void);
 
 void IntControllerInit(void);
-void IntPrioritySet(unsigned int intrNum, unsigned int priority,
-		unsigned int hostIntRoute);
+void IntPrioritySet(unsigned int intrNum, unsigned int priority, unsigned int hostIntRoute);
 void IntHandlerEnable(uint32_t intNum);
 void IntHandlerDisable(uint32_t intNum);
 void IntRegister(uint32_t intNum, intHandler handler);
@@ -147,5 +146,7 @@ void IntUnRegister(uint32_t intNum);
 void IntUnResetRegister(uint32_t intNum);
 void IntIRQHandler();
 uint32_t IntActiveIrqNumGet(void);
+unsigned int IntMasterStatusGet(void);
 void IntMasterIRQEnable(void);
+void IntMasterIRQDisable(void);
 #endif /* INTERRUPT_H_ */

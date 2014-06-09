@@ -20,8 +20,10 @@ intResetHandler intIrqResetHandlers[NUM_INTERRUPTS];
 static void IntDefaultHandler(void);
 static void IntDefaultResetHandler(void);
 
+extern unsigned int CPUIntStatus(void);
+
 void IntControllerInit(void) {
-	unsigned int intNum;
+	uint32_t intNum;
 
 	// Reset the ARM interrupt controller
 	reg32w(SOC_AINTC_REGS, INTC_SYSCONFIG, INTC_SYSCONFIG_SOFTRESET);
@@ -113,22 +115,33 @@ uint32_t IntActiveIrqNumGet(void) {
 }
 
 /**
- * \brief Default Interrupt Handler.
- *        This is the default interrupt handler for all interrupts. It simply returns
- *        without performing any operation
- */
-static void IntDefaultHandler(void) {
-	// Go Back, nothing to be done
-	;
+ * \brief   Returns the status of the interrupts FIQ and IRQ.
+ *
+ * \param    None
+ *
+ * \return   Status of interrupt as in CPSR.
+ *
+ *  Note: This function call shall be done only in previleged mode of ARM
+ **/
+uint32_t IntMasterStatusGet(void)
+{
+    uint32_t stat = CPUIntStatus();
+
+    return stat;
 }
 
-/**
- * \brief Default Interrupt Reset Handler.
- */
-static void IntDefaultResetHandler(void) {
-	// Go Back, nothing to be done
-	;
-}
+/*
+**
+** Wrapper function for the IRQ status
+**
+*/
+__asm("    .sect \".text:CPUIntStatus\"\n"
+          "    .clink\n"
+          "    .global CPUIntStatus\n"
+          "CPUIntStatus:\n"
+          "    mrs     r0, CPSR \n"
+          "    and     r0, r0, #0xC0\n"
+          "    bx      lr");
 
 /**
  * \brief  Enables the processor IRQ only in CPSR. Makes the processor to
@@ -146,4 +159,39 @@ void IntMasterIRQEnable(void)
     /* Enable IRQ in CPSR.*/
     CPUirqe();
 
+}
+
+/**
+ * \brief  Disables the processor IRQ only in CPSR.Prevents the processor to
+ *         respond to IRQs.  This does not affect the set of interrupts
+ *         enabled/disabled in the AINTC.
+ *
+ * \param    None
+ *
+ * \return   None
+ *
+ *  Note: This function call shall be done only in previleged mode of ARM
+ **/
+void IntMasterIRQDisable(void)
+{
+    /* Disable IRQ in CPSR.*/
+    CPUirqd();
+}
+
+/**
+ * \brief Default Interrupt Handler.
+ *        This is the default interrupt handler for all interrupts. It simply returns
+ *        without performing any operation
+ */
+static void IntDefaultHandler(void) {
+	// Go Back, nothing to be done
+	;
+}
+
+/**
+ * \brief Default Interrupt Reset Handler.
+ */
+static void IntDefaultResetHandler(void) {
+	// Go Back, nothing to be done
+	;
 }

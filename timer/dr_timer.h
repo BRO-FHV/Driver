@@ -9,10 +9,14 @@
  *
  * This file also provides an enumeration called Timer. These enums can
  * be used to choose the correct timer for the function calls.
+ *
+ * NOTE: TIMER 7 will be used as delay timer!
  */
 
 #ifndef DR_TIMER_H_
 #define DR_TIMER_H_
+
+#include <inttypes.h>
 
 typedef enum {
 	Timer_TIMER1MS = 1,
@@ -34,6 +38,9 @@ int32_t TimerReset(Timer timer);
 
 int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine routine);
 
-void delay(unsigned int milliseconds);
+void TimerDelayDelay(uint32_t milliSec);
+void TimerDelayStart(uint32_t milliSec);
+void TimerDelayStop();
+uint32_t TimerDelayIsElapsed();
 
 #endif /* DR_TIMER_H_ */
