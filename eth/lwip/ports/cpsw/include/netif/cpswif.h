@@ -45,8 +45,9 @@
 #ifndef __CPSWIF_H__
 #define __CPSWIF_H__
 
-#define beaglebone 1
-#define am335x 1
+#define am335x
+#define beaglebone
+
 /***************************************************************************/
 /*
  * Configurations for AM335x
@@ -82,8 +83,7 @@
 #define CPSW0_PORT_2_PHY_GIGABIT        TRUE
 #endif
 
-#include "console/dr_console.h"
-#include <stdio.h>
+//#include "consoleUtils.h"
 #define LWIP_PRINTF                     printf
 
 #else

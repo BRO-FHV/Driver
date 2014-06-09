@@ -10,7 +10,7 @@
 #include "dr_eth.h"
 #include "scheduler.h"
 #include "cpsw/dr_cpsw.h"
-#include "lwip/lwiplib.h"
+#include "lwip/ports/cpsw/include/lwiplib.h"
 #include "../timer/dr_timer.h"
 #include "../interrupt/dr_interrupt.h"
 

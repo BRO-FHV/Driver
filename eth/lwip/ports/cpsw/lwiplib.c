@@ -43,7 +43,7 @@
 /*
 ** lwIP Compile Time Options for StarterWare.
 */
-#include "../../lwiplib.h"
+#include "lwiplib.h"
 
 /*
 ** lwIP high-level API/Stack/IPV4/SNMP/Network Interface/PPP codes
@@ -109,9 +109,9 @@
 /*
 ** CPSW-specific lwIP interface/porting layer code.
 */
-#include "port/cpsw/perf.c"
-#include "port/cpsw/sys_arch.c"
-#include "port/cpsw/netif/cpswif.c"
+#include "ports/cpsw/perf.c"
+#include "ports/cpsw/sys_arch.c"
+#include "ports/cpsw/netif/cpswif.c"
 #include "locator.c"
 
 /******************************************************************************
@@ -154,8 +154,7 @@ static void lwIPDHCPComplete(unsigned int ifNum)
 
     while(dhcpTries--)
     {
-        LWIP_PRINTF("\n\rDHCP Trial ...");
-
+        LWIP_PRINTF("\n\rDHCP Trial %d...", (NUM_DHCP_TRIES - dhcpTries));
         dhcp_start(&cpswNetIF[ifNum]);
 
         cnt = LWIP_DHCP_TIMEOUT;
@@ -163,7 +162,7 @@ static void lwIPDHCPComplete(unsigned int ifNum)
         /* Check for DHCP completion for 'cnt' number of times, each 10ms */
         while(cnt--)
         {
-            TimerDelayDelay(10); //default 10
+            delay(10);
             state = &(cpswNetIF[ifNum].dhcp->state);
             if(DHCP_BOUND == *state)
             {

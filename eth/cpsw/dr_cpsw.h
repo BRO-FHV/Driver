@@ -52,6 +52,8 @@
 #ifndef DR_CPSW_H
 #define DR_CPSW_H
 
+#include <inttypes.h>
+
 #include "eth/cpsw/hw_cpsw_ale.h"
 #include "eth/cpsw/hw_cpsw_cpdma.h"
 #include "eth/cpsw/hw_cpsw_port.h"

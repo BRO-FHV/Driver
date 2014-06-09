@@ -40,8 +40,8 @@
  * ALL RIGHTS RESERVED
  */
 
-#include "include/locator.h"
-#include "include/lwiplib.h"
+#include "locator.h"
+#include "lwiplib.h"
 
 /******************************************************************************
 **                      INTERNAL MACRO DEFINITIONS
