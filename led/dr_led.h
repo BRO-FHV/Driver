@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "../gpio/dr_gpio.h"
-#include <soc_AM335x.h>
+#include "soc_AM335x.h"
 
 
 #ifndef DR_LED_H_

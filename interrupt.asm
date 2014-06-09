@@ -121,7 +121,7 @@ irq_handler:
 	STMFD	SP!, { LR }					; store LR in stack
 	MRS		r1, spsr					; copy SPSR
 	STMFD	SP!, {r1}					; backup SPSR in stack
-	MOV 	R0, SP						; ??? pointer to SP in R0, to point to Context-struct
+	MOV 	R0, SP						; pointer to SP in R0, to point to Context-struct, first function parameter
 
 	;
 	; read active IRQ number
@@ -136,7 +136,7 @@ irq_handler:
 	;	+ r14	= link register
 	;	+ pc	= program counter
 	;
-	;STMFD	r13!, {r14}					; backup user link register
+	CPS		#MASK_SYS_MODE				; change to sys mode
 	LDR		r3, _intIrqHandlers			; load base of interrupt handler (implemented in interrupt.c)
 	ADD		r14, pc, #0					; save return address in link register (return point)
 	LDR		pc, [r3, r2, lsl #2]		; jump to interrupt handler
@@ -154,6 +154,8 @@ irq_handler:
 	LDR		r3, _intIrqResetHandlers	; load base of interrupt handler (implemented in interrupt.c)
 	ADD		r14, pc, #0					; save return address in link register (return point)
 	LDR		pc, [r3, r2, lsl #2]		; jump to interrupt handler
+
+	CPS		#MASK_IRQ_MODE				; change to irq mode
 
 	;
 	; enable IRQ generation

@@ -9,6 +9,7 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <interrupt/hw_interrupt.h>
 #include "dr_console.h"
@@ -61,6 +62,19 @@ void ConsoleLog(char sender[], char message[]) {
 	char* logMessage = PrepareMessage(logType, sender, message);
 
 	UartWrite(uartBaseAddr, logMessage, strlen(logMessage));
+}
+
+/**
+ * \brief Send Log Message with variable amount of arguments
+ */
+void ConsoleLogf(char sender[], const char *string, ...) {
+
+	va_list arg;
+	va_start (arg, string);
+
+	UartWritef(uartBaseAddr,  string, arg);
+
+	va_end(arg);
 }
 
 /**
