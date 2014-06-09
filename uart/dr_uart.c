@@ -15,7 +15,7 @@
 #include <platform/hw_beaglebone.h>
 #include <uart/hw_uart.h>
 #include <basic.h>
-#include <list/linkedlist.h>
+#include "list/linkedlist.h"
 #include "../interrupt/dr_interrupt.h"
 #include "dr_uart.h"
 
@@ -47,6 +47,10 @@ static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
 		uint32_t parityFlag);
 static void UartDivisorLatchDisable(uint32_t baseAdd);
 static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState);
+
+/* A mapping from an integer between 0 and 15 to its ASCII character
+ * equivalent. */
+static const char * const g_pcHex = "0123456789abcdef";
 
 // write helper function
 static uint32_t UartWriteChunk(uint32_t baseAddr);
@@ -214,7 +218,7 @@ void UartIntDisable(uint32_t baseAddr, uint32_t intFlag) {
  *
  * \see uart_irda_cir.c::UARTFIFOWrite
  */
-uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
+uint32_t UartWrite(uint32_t baseAddr, const char *pBuffer, uint32_t numTxBytes) {
 	uint32_t numByteChunks = numTxBytes / NUM_TX_BYTES_PER_TRANS;
 	uint32_t remainBytes = numTxBytes % NUM_TX_BYTES_PER_TRANS;
 	uint32_t bIndex = numByteChunks;
@@ -252,709 +256,1014 @@ uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes) {
 }
 
 /**
- * \brief write one chunk (max 56 bytes) to output fifo
+ * \brief sends a message with a variable amount of argmunents over uart module identified by base address
  */
-static uint32_t UartWriteChunk(uint32_t baseAddr) {
-	uint32_t lIndex = 0;
+void UartWritef(uint32_t baseAddr,const char* string, va_list vaArg) {
 
-	if (txEmptyFlag == TRUE) {
-		// TODO get back!
-		wChunk_t* chunk = (wChunk_t*) LinkedListGetBack(chunkList);
-		if (chunk != NULL) {
-			char* pBuffer = chunk->message;
+	unsigned int idx, pos, count, base, neg;
+	char *pcStr, pcBuf[16], cFill;
+	int value;
 
-			for (lIndex = 0; lIndex < chunk->size; lIndex++) {
-				// Writing data to the TX FIFO
-				reg32w(baseAddr, UART_THR, *pBuffer++);
+	/* Loop while there are more characters in the string. */
+	while(*string)
+	{
+		/* Find the first non-% character, or the end of the string. */
+		for(idx = 0u; (string[idx] != '%') && (string[idx] != '\0'); idx++)
+		{
+		}
+
+		/* Write this portion of the string. */
+		UartWrite(SOC_UART_0_REGS, string, idx);
+
+		/* Skip the portion of the string that was written. */
+		string += idx;
+
+		/* See if the next character is a %. */
+		if(*string == '%')
+		{
+			/* Skip the %. */
+			string++;
+
+			/*
+			** Set the digit count to zero, and the fill character to space
+			** (i.e. to the defaults).
+			*/
+			count = 0u;
+			cFill = ' ';
+
+			/*
+			** It may be necessary to get back here to process more characters.
+			** Goto's aren't pretty, but effective. I feel extremely dirty for
+			** using not one but two of the beasts.
+			*/
+again:
+
+			/* Determine how to handle the next character. */
+			switch(*string++)
+			{
+				/* Handle the digit characters. */
+				case '0':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
+				case '8':
+				case '9':
+				{
+					/*
+					** If this is a zero, and it is the first digit, then the
+					** fill character is a zero instead of a space.
+					*/
+					if((string[-1] == '0') && (count == 0))
+					{
+						cFill = '0';
+					}
+
+					/* Update the digit count. */
+					count *= 10;
+					count += string[-1] - '0';
+
+					/* Get the next character. */
+					goto again;
+				}
+
+				/* Handle the %c command. */
+				case 'c':
+				{
+					/* Get the value from the varargs. */
+					value = va_arg(vaArg, unsigned int);
+
+					/* Print out the character. */
+					UartWrite(SOC_UART_0_REGS,(char *)&value, 1);
+
+					/* This command has been handled. */
+					break;
+				}
+
+				/* Handle the %d command. */
+				case 'd':
+				{
+					/* Get the value from the varargs. */
+					value = va_arg(vaArg, unsigned int);
+
+					/* Reset the buffer position. */
+					pos = 0u;
+
+					/*
+					** If the value is negative, make it positive and indicate
+					** that a minus sign is needed.
+					*/
+					if((int)value < 0)
+					{
+						/* Make the value positive. */
+						value = -(int)value;
+
+						/* Indicate that the value is negative. */
+						neg = 1u;
+					}
+					else
+					{
+						/*
+						** Indicate that the value is positive so that a minus
+						** sign isn't inserted.
+						*/
+						neg = 0u;
+					}
+
+					/* Set the base to 10. */
+					base = 10u;
+
+					/* Convert the value to ASCII. */
+					goto convert;
+				}
+
+				/* Handle the %s command. */
+				case 's':
+				{
+					/* Get the string pointer from the varargs. */
+					pcStr = va_arg(vaArg, char *);
+
+					/* Determine the length of the string. */
+					for(idx = 0u; pcStr[idx] != '\0'; idx++)
+					{
+					}
+					printf(pcStr);
+					printf("\n");
+					printf("%d",strlen(pcStr));
+					printf("\n");
+					/* Write the string. */
+					UartWrite(SOC_UART_0_REGS,pcStr, idx);
+
+					/* Write any required padding spaces */
+					if(count > idx)
+					{
+						count -= idx;
+						while(count--)
+						{
+							UartWrite(SOC_UART_0_REGS,(char *)" ", 1);
+						}
+					}
+					/* This command has been handled. */
+					break;
+				}
+
+				/* Handle the %u command. */
+				case 'u':
+				{
+					/* Get the value from the varargs. */
+					value = va_arg(vaArg, unsigned int);
+
+					/* Reset the buffer position. */
+					pos = 0u;
+
+					/* Set the base to 10. */
+					base = 10u;
+
+					/* Indicate that the value is positive so that a minus sign
+					 * isn't inserted. */
+					neg = 0u;
+
+					/* Convert the value to ASCII. */
+					goto convert;
+				}
+
+				/*
+				** Handle the %x and %X commands.  Note that they are treated
+				** identically; i.e. %X will use lower case letters for a-f
+				** instead of the upper case letters it should use.  We also
+				** alias %p to %x.
+				*/
+				case 'x':
+				case 'X':
+				case 'p':
+				{
+					/* Get the value from the varargs. */
+					value = va_arg(vaArg, unsigned int);
+
+					/* Reset the buffer position. */
+					pos = 0u;
+
+					/* Set the base to 16. */
+					base = 16u;
+
+					/*
+					** Indicate that the value is positive so that a minus sign
+					** isn't inserted.
+					*/
+					neg = 0u;
+
+					/*
+					** Determine the number of digits in the string version of
+					** the value.
+					*/
+convert:
+					for(idx = 1;
+						(((idx * base) <= value) &&
+						 (((idx * base) / base) == idx));
+						idx *= base, count--)
+					{
+					}
+
+					/*
+					** If the value is negative, reduce the count of padding
+					** characters needed.
+					*/
+					if(neg)
+					{
+						count--;
+					}
+
+					/*
+					** If the value is negative and the value is padded with
+					** zeros, then place the minus sign before the padding.
+					*/
+					if(neg && (cFill == '0'))
+					{
+						/* Place the minus sign in the output buffer. */
+						pcBuf[pos++] = '-';
+
+						/*
+						** The minus sign has been placed, so turn off the
+						** negative flag.
+						*/
+						neg = 0u;
+					}
+
+					/* Provide additional padding at the beginning of the
+					 * string conversion if needed. */
+					if((count > 1) && (count < 16))
+					{
+						for(count--; count; count--)
+						{
+							pcBuf[pos++] = cFill;
+						}
+					}
+
+					/* If the value is negative, then place the minus sign
+					 * before the number. */
+					if(neg)
+					{
+						/* Place the minus sign in the output buffer. */
+						pcBuf[pos++] = '-';
+					}
+
+					/* Convert the value into a string. */
+					for(; idx; idx /= base)
+					{
+						pcBuf[pos++] = g_pcHex[(value / idx) % base];
+					}
+
+					/* Write the string. */
+					UartWrite(SOC_UART_0_REGS,pcBuf, pos);
+
+					/* This command has been handled. */
+					break;
+				}
+
+				/* Handle the %% command. */
+				case '%':
+				{
+					/* Simply write a single %. */
+					UartWrite(SOC_UART_0_REGS,string - 1, 1);
+
+					/* This command has been handled. */
+					break;
+				}
+
+				/* Handle all other commands. */
+				default:
+				{
+					/* Indicate an error. */
+					UartWrite(SOC_UART_0_REGS,(char *)"ERROR", 5);
+
+					/* This command has been handled. */
+					break;
+				}
 			}
-
-			free(chunk->message);
-			free(chunk);
-
-			txEmptyFlag = FALSE;
-			UartIntEnable(baseAddr, UART_INT_THR);
 		}
 	}
-
-	return lIndex;
 }
 
-/**
- * \brief reads on byte of of input fifo
- */
-char UartCharGetNonBlocking(uint32_t baseAddr) {
-	uint32_t lcrRegValue = 0;
-	uint32_t retVal = 0;
-
-	// switching to Register Operational Mode of operation
-	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
-
-	// checking if the RX FIFO(or RHR) has atleast one byte of data
-	if (reg32r(baseAddr, UART_LSR) & UART_LSR_RX_FIFO_E) {
-		retVal = (char) reg32r(baseAddr, UART_RHR);
-	}
-
-	// restoring the value of LCR
-	reg32w(baseAddr, UART_LCR, lcrRegValue);
-
-	return retVal;
-}
-
-/**
- * \brief returns TRUE if available chars exists
- */
-tBoolean UartAvailable(unsigned int baseAddr) {
-	uint32_t lcrRegValue = 0;
-	uint32_t retVal = 0;
-
-	// Switching to Register Operational Mode of operation
-	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
-
-	// checking if the RHR(or RX FIFO) has atleast one byte to be read
-	if (reg32r(baseAddr, UART_LSR) & UART_LSR_RX_FIFO_E) {
-		retVal = TRUE;
-	}
-
-	// restoring the value of LCR
-	reg32w(baseAddr, UART_LCR, lcrRegValue);
-
-	return retVal;
-}
-
-/**
- * \brief handles uart interrupt
- */
-void UartInterrupt(void) {
-	uint32_t intId = UartIntIdentityGet(SOC_UART_0_REGS);
-	char rxByte;
-
-	switch (intId) {
-	case UART_INTID_TX_THRES_REACH:
-		// enable chunk
-		txEmptyFlag = TRUE;
-
-		// Disable the THR interrupt. This has to be done even if the
-		UartIntDisable(SOC_UART_0_REGS, UART_INT_THR);
-
-		// write a chunk
-		uint32_t l = UartWriteChunk(SOC_UART_0_REGS);
-		break;
-
-	case UART_INTID_RX_THRES_REACH:
-		printf("UART_INTID_RX_THRES_REACH\n");
-		rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
-
-		printf("char: %c\r\n", rxByte);
-		break;
-
-	case UART_INTID_RX_LINE_STAT_ERROR:
-		printf("UART_INTID_RX_LINE_STAT_ERROR\n");
-		break;
-
-	case UART_INTID_CHAR_TIMEOUT:
-		printf("UART_INTID_CHAR_TIMEOUT\n");
-		while (TRUE == UartAvailable(SOC_UART_0_REGS)) {
-			rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
-			printf("char: %c\r\n", rxByte);
-		}
-		break;
-
-	default:
-		printf("DEFAULT\n");
-		break;
-	}
-}
-
-/**
- * \brief disables write access to Divisor Latch registers DLL and DLH
- *
- * \see uart_irda_cir.c::UARTDivisorLatchDisable
- */
-static void UartDivisorLatchDisable(uint32_t baseAdd) {
-	// Disabling access to Divisor Latch registers by clearing LCR[7] bit
-	reg32a(baseAdd, UART_LCR, ~(UART_LCR_DIV_EN));
-}
-
-/**
- * \brief introduce or remove a Break condition
- *
- * \see uart_irda_cir.c::UARTBreakCtl
- */
-static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState) {
-	// Clearing the BREAK_EN bit in LCR
-	reg32a(baseAdd, UART_LCR, ~(UART_LCR_BREAK_EN));
-
-	// Programming the BREAK_EN bit in LCR
-	reg32m(baseAdd, UART_LCR, (breakState & UART_LCR_BREAK_EN));
-}
-
-/**
- * \brief configures the Line Characteristics for the UART instance. The Line Characteristics include:
- *           - Word length per frame
- *           - Number of Stop Bits per frame
- *           - Parity feature configuration
- *
- * \see uart_irda_cir.c::UARTLineCharacConfig
- */
-static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
-		uint32_t parityFlag) {
-	// Clearing the CHAR_LENGTH and NB_STOP fields in LCR
-	reg32a(baseAddr, UART_LCR, ~(UART_LCR_NB_STOP | UART_LCR_CHAR_LENGTH));
-
-	// Programming the CHAR_LENGTH and NB_STOP fields in LCR
-	reg32m(baseAddr, UART_LCR,
-			(wLenStbFlag & (UART_LCR_NB_STOP | UART_LCR_CHAR_LENGTH)));
-
-	// Clearing the PARITY_EN, PARITY_TYPE1 and PARITY_TYPE2 fields in LCR
-	reg32a(baseAddr, UART_LCR,
-			~(UART_LCR_PARITY_TYPE2 | UART_LCR_PARITY_TYPE1 | UART_LCR_PARITY_EN));
-
-	// Programming the PARITY_EN, PARITY_TYPE1 and PARITY_TYPE2 fields in LCR
-	reg32m(baseAddr, UART_LCR,
-			(parityFlag & (UART_LCR_PARITY_TYPE2 | UART_LCR_PARITY_TYPE1 | UART_LCR_PARITY_EN)));
-
-}
-
-/**
- * \brief set baudrate to uart module
- *
- * \see uart_irda_cir.c::UARTLineCharacConfig
- */
-static void UartBaudRateSet(uint32_t baseAddr, uint32_t baudRate) {
-	uint32_t divisorValue = 0;
-
-	// Computing the Divisor Value
-	divisorValue = UartDivisorValCompute(UART_MODULE_INPUT_CLK, baudRate,
-			UART16x_OPER_MODE, UART_MIR_OVERSAMPLING_RATE_42);
-
-	//Programming the Divisor Latches
-	UartDivisorLatchWrite(baseAddr, divisorValue);
-}
-
-/**
- * \brief computes the divisor value for the specified operating mode. Not part of this API, the
- * 		  divisor value returned is written to the Divisor Latches to configure the Baud Rate
- *
- * \see uart_irda_cir.c::UARTDivisorValCompute
- */
-static uint32_t UartDivisorValCompute(uint32_t moduleClk, uint32_t baudRate,
-		uint32_t modeFlag, uint32_t mirOverSampRate) {
-	uint32_t divisorValue = 0;
-
-	modeFlag &= UART_MDR1_MODE_SELECT;
-
-	switch (modeFlag) {
-	case UART16x_OPER_MODE:
-	case UART_SIR_OPER_MODE:
-		divisorValue = (moduleClk) / (16 * baudRate);
-		break;
-
-	case UART13x_OPER_MODE:
-		divisorValue = (moduleClk) / (13 * baudRate);
-		break;
-
-	case UART_MIR_OPER_MODE:
-		divisorValue = (moduleClk) / (mirOverSampRate * baudRate);
-		break;
-
-	case UART_FIR_OPER_MODE:
-		divisorValue = 0;
-		break;
-
-	default:
-		break;
-	}
-
-	return divisorValue;
-}
-
-/**
- * \brief performs a module reset of the UART module. It also waits until the reset process is
- * 	      complete
- *
- * \see uart_irda_cir.c::UARTModuleReset
- */
-void UartModuleReset(uint32_t baseAdd) {
-	// Performing Software Reset of the module
-	reg32m(baseAdd, UART_SYSC, UART_SYSC_SOFTRESET);
-
-	// Wait until the process of Module Reset is complete
-	wait(!(reg32r(baseAdd, UART_SYSS) & UART_SYSS_RESETDONE));
-}
-
-/**
- * \brief configures fifo with default values
- */
-static void UartFIFODefaultConfigure(void) {
-	uint32_t fifoConfig = 0;
-
-	/*
-	 ** - Transmit Trigger Level Granularity is 4
-	 ** - Receiver Trigger Level Granularity is 1
-	 ** - Transmit FIFO Space Setting is 56. Hence TX Trigger level
-	 **   is 8 (64 - 56). The TX FIFO size is 64 bytes.
-	 ** - The Receiver Trigger Level is 1.
-	 ** - Clear the Transmit FIFO.
-	 ** - Clear the Receiver FIFO.
-	 ** - DMA Mode enabling shall happen through SCR register.
-	 ** - DMA Mode 0 is enabled. DMA Mode 0 corresponds to No
-	 **   DMA Mode. Effectively DMA Mode is disabled.
+	/**
+	 * \brief write one chunk (max 56 bytes) to output fifo
 	 */
-	fifoConfig = UART_FIFO_CONFIG(UART_TRIG_LVL_GRANULARITY_4,
-			UART_TRIG_LVL_GRANULARITY_1,
-			UART_FCR_TX_TRIG_LVL_56,
-			1,
-			1,
-			1,
-			UART_DMA_EN_PATH_SCR,
-			UART_DMA_MODE_0_ENABLE);
+	static uint32_t UartWriteChunk(uint32_t baseAddr) {
+		uint32_t lIndex = 0;
 
-	// Configuring the FIFO settings
-	UartFIFOConfigure(SOC_UART_0_REGS, fifoConfig);
-}
+		if (txEmptyFlag == TRUE) {
+			// TODO get back!
+			wChunk_t* chunk = (wChunk_t*) LinkedListGetBack(chunkList);
+			if (chunk != NULL) {
+				char* pBuffer = chunk->message;
 
-/**
- * configures the FIFO settings for the UART instance. Specifically, this does the following
- * configurations:
- *   1> Configures the Transmitter and Receiver FIFO Trigger Level granularity
- *   2> Configures the Transmitter and Receiver FIFO Trigger Level
- *   3> Configures the bits which clear/not clear the TX and RX FIFOs
- *   4> Configures the DMA mode of operation
- *
- * \see uart_irda_cir.c::UARTFIFOConfig
- */
-static uint32_t UartFIFOConfigure(uint32_t baseAdd, uint32_t fifoConfig) {
-	uint32_t txGra = (fifoConfig & UART_FIFO_CONFIG_TXGRA) >> 26;
-	uint32_t rxGra = (fifoConfig & UART_FIFO_CONFIG_RXGRA) >> 22;
+				for (lIndex = 0; lIndex < chunk->size; lIndex++) {
+					// Writing data to the TX FIFO
+					reg32w(baseAddr, UART_THR, *pBuffer++);
+				}
 
-	uint32_t txTrig = (fifoConfig & UART_FIFO_CONFIG_TXTRIG) >> 14;
-	uint32_t rxTrig = (fifoConfig & UART_FIFO_CONFIG_RXTRIG) >> 6;
+				free(chunk->message);
+				free(chunk);
 
-	uint32_t txClr = (fifoConfig & UART_FIFO_CONFIG_TXCLR) >> 5;
-	uint32_t rxClr = (fifoConfig & UART_FIFO_CONFIG_RXCLR) >> 4;
+				txEmptyFlag = FALSE;
+				UartIntEnable(baseAddr, UART_INT_THR);
+			}
+		}
 
-	uint32_t dmaEnPath = (fifoConfig & UART_FIFO_CONFIG_DMAENPATH) >> 3;
-	uint32_t dmaMode = (fifoConfig & UART_FIFO_CONFIG_DMAMODE);
+		return lIndex;
+	}
 
-	uint32_t enhanFnBitVal = 0;
-	uint32_t tcrTlrBitVal = 0;
-	uint32_t tlrValue = 0;
-	uint32_t fcrValue = 0;
+	/**
+	 * \brief reads on byte of of input fifo
+	 */
+	char UartCharGetNonBlocking(uint32_t baseAddr) {
+		uint32_t lcrRegValue = 0;
+		uint32_t retVal = 0;
 
-	// Setting the EFR[4] bit to 1
-	enhanFnBitVal = UartEnhanFuncEnable(baseAdd);
+		// switching to Register Operational Mode of operation
+		lcrRegValue = UartRegConfigModeEnable(baseAddr,
+				UART_REG_OPERATIONAL_MODE);
 
-	tcrTlrBitVal = UartSubConfigTCRTLRModeEn(baseAdd);
+		// checking if the RX FIFO(or RHR) has atleast one byte of data
+		if (reg32r(baseAddr, UART_LSR) & UART_LSR_RX_FIFO_E) {
+			retVal = (char) reg32r(baseAddr, UART_RHR);
+		}
 
-	// Enabling FIFO mode of operation
-	fcrValue |= UART_FCR_FIFO_EN;
+		// restoring the value of LCR
+		reg32w(baseAddr, UART_LCR, lcrRegValue);
 
-	// Setting the Receiver FIFO trigger level
-	if (UART_TRIG_LVL_GRANULARITY_1 != rxGra) {
-		// Clearing the RXTRIGGRANU1 bit in SCR
-		reg32a(baseAdd, UART_SCR, ~(UART_SCR_RX_TRIG_GRANU1));
+		return retVal;
+	}
 
-		// Clearing the RX_FIFO_TRIG_DMA field of TLR register
-		reg32a(baseAdd, UART_TLR, ~(UART_TLR_RX_FIFO_TRIG_DMA));
+	/**
+	 * \brief returns TRUE if available chars exists
+	 */
+	tBoolean UartAvailable(unsigned int baseAddr) {
+		uint32_t lcrRegValue = 0;
+		uint32_t retVal = 0;
 
-		fcrValue &= ~(UART_FCR_RX_FIFO_TRIG);
+		// Switching to Register Operational Mode of operation
+		lcrRegValue = UartRegConfigModeEnable(baseAddr,
+				UART_REG_OPERATIONAL_MODE);
 
-		// Checking if 'rxTrig' matches with the RX Trigger level values in FCR.
-		if ((UART_FCR_RX_TRIG_LVL_8 == rxTrig)
-				|| (UART_FCR_RX_TRIG_LVL_16 == rxTrig)
-				|| (UART_FCR_RX_TRIG_LVL_56 == rxTrig)
-				|| (UART_FCR_RX_TRIG_LVL_60 == rxTrig)) {
-			fcrValue |= (rxTrig & UART_FCR_RX_FIFO_TRIG);
+		// checking if the RHR(or RX FIFO) has atleast one byte to be read
+		if (reg32r(baseAddr, UART_LSR) & UART_LSR_RX_FIFO_E) {
+			retVal = TRUE;
+		}
+
+		// restoring the value of LCR
+		reg32w(baseAddr, UART_LCR, lcrRegValue);
+
+		return retVal;
+	}
+
+	/**
+	 * \brief handles uart interrupt
+	 */
+	void UartInterrupt(void)
+	{
+		uint32_t intId = UartIntIdentityGet(SOC_UART_0_REGS);
+		char rxByte;
+
+		switch (intId)
+		{
+			case UART_INTID_TX_THRES_REACH:
+			{	// enable chunk
+				txEmptyFlag = TRUE;
+
+				// Disable the THR interrupt. This has to be done even if the
+				UartIntDisable(SOC_UART_0_REGS, UART_INT_THR);
+
+				// write a chunk
+				uint32_t l = UartWriteChunk(SOC_UART_0_REGS);
+				break;
+			}
+			case UART_INTID_RX_THRES_REACH:
+			{
+				printf("UART_INTID_RX_THRES_REACH\n");
+				rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
+
+				printf("char: %c\r\n", rxByte);
+				break;
+			}
+			case UART_INTID_RX_LINE_STAT_ERROR:
+			{
+				printf("UART_INTID_RX_LINE_STAT_ERROR\n");
+				break;
+			}
+			case UART_INTID_CHAR_TIMEOUT:
+			{
+				printf("UART_INTID_CHAR_TIMEOUT\n");
+				while (TRUE == UartAvailable(SOC_UART_0_REGS)) {
+					rxByte = UartCharGetNonBlocking(SOC_UART_0_REGS);
+					printf("char: %c\r\n", rxByte);
+				}
+				break;
+			}
+			default:
+			{
+				printf("DEFAULT\n");
+				break;
+			}
+		}
+	}
+
+	/**
+	 * \brief disables write access to Divisor Latch registers DLL and DLH
+	 *
+	 * \see uart_irda_cir.c::UARTDivisorLatchDisable
+	 */
+	static void UartDivisorLatchDisable(uint32_t baseAdd) {
+		// Disabling access to Divisor Latch registers by clearing LCR[7] bit
+		reg32a(baseAdd, UART_LCR, ~(UART_LCR_DIV_EN));
+	}
+
+	/**
+	 * \brief introduce or remove a Break condition
+	 *
+	 * \see uart_irda_cir.c::UARTBreakCtl
+	 */
+	static void UartBreakCtl(uint32_t baseAdd, uint32_t breakState) {
+		// Clearing the BREAK_EN bit in LCR
+		reg32a(baseAdd, UART_LCR, ~(UART_LCR_BREAK_EN));
+
+		// Programming the BREAK_EN bit in LCR
+		reg32m(baseAdd, UART_LCR, (breakState & UART_LCR_BREAK_EN));
+	}
+
+	/**
+	 * \brief configures the Line Characteristics for the UART instance. The Line Characteristics include:
+	 *           - Word length per frame
+	 *           - Number of Stop Bits per frame
+	 *           - Parity feature configuration
+	 *
+	 * \see uart_irda_cir.c::UARTLineCharacConfig
+	 */
+	static void UartLineCharacConfig(uint32_t baseAddr, uint32_t wLenStbFlag,
+			uint32_t parityFlag) {
+		// Clearing the CHAR_LENGTH and NB_STOP fields in LCR
+		reg32a(baseAddr, UART_LCR, ~(UART_LCR_NB_STOP | UART_LCR_CHAR_LENGTH));
+
+		// Programming the CHAR_LENGTH and NB_STOP fields in LCR
+		reg32m(baseAddr, UART_LCR,
+				(wLenStbFlag & (UART_LCR_NB_STOP | UART_LCR_CHAR_LENGTH)));
+
+		// Clearing the PARITY_EN, PARITY_TYPE1 and PARITY_TYPE2 fields in LCR
+		reg32a(baseAddr, UART_LCR,
+				~(UART_LCR_PARITY_TYPE2 | UART_LCR_PARITY_TYPE1 | UART_LCR_PARITY_EN));
+
+		// Programming the PARITY_EN, PARITY_TYPE1 and PARITY_TYPE2 fields in LCR
+		reg32m(baseAddr, UART_LCR,
+				(parityFlag & (UART_LCR_PARITY_TYPE2 | UART_LCR_PARITY_TYPE1 | UART_LCR_PARITY_EN)));
+
+	}
+
+	/**
+	 * \brief set baudrate to uart module
+	 *
+	 * \see uart_irda_cir.c::UARTLineCharacConfig
+	 */
+	static void UartBaudRateSet(uint32_t baseAddr, uint32_t baudRate) {
+		uint32_t divisorValue = 0;
+
+		// Computing the Divisor Value
+		divisorValue = UartDivisorValCompute(UART_MODULE_INPUT_CLK, baudRate,
+				UART16x_OPER_MODE, UART_MIR_OVERSAMPLING_RATE_42);
+
+		//Programming the Divisor Latches
+		UartDivisorLatchWrite(baseAddr, divisorValue);
+	}
+
+	/**
+	 * \brief computes the divisor value for the specified operating mode. Not part of this API, the
+	 * 		  divisor value returned is written to the Divisor Latches to configure the Baud Rate
+	 *
+	 * \see uart_irda_cir.c::UARTDivisorValCompute
+	 */
+	static uint32_t UartDivisorValCompute(uint32_t moduleClk, uint32_t baudRate,
+			uint32_t modeFlag, uint32_t mirOverSampRate) {
+		uint32_t divisorValue = 0;
+
+		modeFlag &= UART_MDR1_MODE_SELECT;
+
+		switch (modeFlag) {
+		case UART16x_OPER_MODE:
+		case UART_SIR_OPER_MODE:
+			divisorValue = (moduleClk) / (16 * baudRate);
+			break;
+
+		case UART13x_OPER_MODE:
+			divisorValue = (moduleClk) / (13 * baudRate);
+			break;
+
+		case UART_MIR_OPER_MODE:
+			divisorValue = (moduleClk) / (mirOverSampRate * baudRate);
+			break;
+
+		case UART_FIR_OPER_MODE:
+			divisorValue = 0;
+			break;
+
+		default:
+			break;
+		}
+
+		return divisorValue;
+	}
+
+	/**
+	 * \brief performs a module reset of the UART module. It also waits until the reset process is
+	 * 	      complete
+	 *
+	 * \see uart_irda_cir.c::UARTModuleReset
+	 */
+	void UartModuleReset(uint32_t baseAdd) {
+		// Performing Software Reset of the module
+		reg32m(baseAdd, UART_SYSC, UART_SYSC_SOFTRESET);
+
+		// Wait until the process of Module Reset is complete
+		wait(!(reg32r(baseAdd, UART_SYSS) & UART_SYSS_RESETDONE));
+	}
+
+	/**
+	 * \brief configures fifo with default values
+	 */
+	static void UartFIFODefaultConfigure(void) {
+		uint32_t fifoConfig = 0;
+
+		/*
+		 ** - Transmit Trigger Level Granularity is 4
+		 ** - Receiver Trigger Level Granularity is 1
+		 ** - Transmit FIFO Space Setting is 56. Hence TX Trigger level
+		 **   is 8 (64 - 56). The TX FIFO size is 64 bytes.
+		 ** - The Receiver Trigger Level is 1.
+		 ** - Clear the Transmit FIFO.
+		 ** - Clear the Receiver FIFO.
+		 ** - DMA Mode enabling shall happen through SCR register.
+		 ** - DMA Mode 0 is enabled. DMA Mode 0 corresponds to No
+		 **   DMA Mode. Effectively DMA Mode is disabled.
+		 */
+		fifoConfig = UART_FIFO_CONFIG(UART_TRIG_LVL_GRANULARITY_4,
+				UART_TRIG_LVL_GRANULARITY_1,
+				UART_FCR_TX_TRIG_LVL_56,
+				1,
+				1,
+				1,
+				UART_DMA_EN_PATH_SCR,
+				UART_DMA_MODE_0_ENABLE);
+
+		// Configuring the FIFO settings
+		UartFIFOConfigure(SOC_UART_0_REGS, fifoConfig);
+	}
+
+	/**
+	 * configures the FIFO settings for the UART instance. Specifically, this does the following
+	 * configurations:
+	 *   1> Configures the Transmitter and Receiver FIFO Trigger Level granularity
+	 *   2> Configures the Transmitter and Receiver FIFO Trigger Level
+	 *   3> Configures the bits which clear/not clear the TX and RX FIFOs
+	 *   4> Configures the DMA mode of operation
+	 *
+	 * \see uart_irda_cir.c::UARTFIFOConfig
+	 */
+	static uint32_t UartFIFOConfigure(uint32_t baseAdd, uint32_t fifoConfig) {
+		uint32_t txGra = (fifoConfig & UART_FIFO_CONFIG_TXGRA) >> 26;
+		uint32_t rxGra = (fifoConfig & UART_FIFO_CONFIG_RXGRA) >> 22;
+
+		uint32_t txTrig = (fifoConfig & UART_FIFO_CONFIG_TXTRIG) >> 14;
+		uint32_t rxTrig = (fifoConfig & UART_FIFO_CONFIG_RXTRIG) >> 6;
+
+		uint32_t txClr = (fifoConfig & UART_FIFO_CONFIG_TXCLR) >> 5;
+		uint32_t rxClr = (fifoConfig & UART_FIFO_CONFIG_RXCLR) >> 4;
+
+		uint32_t dmaEnPath = (fifoConfig & UART_FIFO_CONFIG_DMAENPATH) >> 3;
+		uint32_t dmaMode = (fifoConfig & UART_FIFO_CONFIG_DMAMODE);
+
+		uint32_t enhanFnBitVal = 0;
+		uint32_t tcrTlrBitVal = 0;
+		uint32_t tlrValue = 0;
+		uint32_t fcrValue = 0;
+
+		// Setting the EFR[4] bit to 1
+		enhanFnBitVal = UartEnhanFuncEnable(baseAdd);
+
+		tcrTlrBitVal = UartSubConfigTCRTLRModeEn(baseAdd);
+
+		// Enabling FIFO mode of operation
+		fcrValue |= UART_FCR_FIFO_EN;
+
+		// Setting the Receiver FIFO trigger level
+		if (UART_TRIG_LVL_GRANULARITY_1 != rxGra) {
+			// Clearing the RXTRIGGRANU1 bit in SCR
+			reg32a(baseAdd, UART_SCR, ~(UART_SCR_RX_TRIG_GRANU1));
+
+			// Clearing the RX_FIFO_TRIG_DMA field of TLR register
+			reg32a(baseAdd, UART_TLR, ~(UART_TLR_RX_FIFO_TRIG_DMA));
+
+			fcrValue &= ~(UART_FCR_RX_FIFO_TRIG);
+
+			// Checking if 'rxTrig' matches with the RX Trigger level values in FCR.
+			if ((UART_FCR_RX_TRIG_LVL_8 == rxTrig)
+					|| (UART_FCR_RX_TRIG_LVL_16 == rxTrig)
+					|| (UART_FCR_RX_TRIG_LVL_56 == rxTrig)
+					|| (UART_FCR_RX_TRIG_LVL_60 == rxTrig)) {
+				fcrValue |= (rxTrig & UART_FCR_RX_FIFO_TRIG);
+			} else {
+				// RX Trigger level will be a multiple of 4
+				// Programming the RX_FIFO_TRIG_DMA field of TLR register
+				reg32m(baseAdd, UART_TLR,
+						((rxTrig << UART_TLR_RX_FIFO_TRIG_DMA_SHIFT) & UART_TLR_RX_FIFO_TRIG_DMA));
+			}
 		} else {
-			// RX Trigger level will be a multiple of 4
+			// 'rxTrig' now has the 6-bit RX Trigger level value
+			rxTrig &= 0x003F;
+
+			// Collecting the bits rxTrig[5:2]
+			tlrValue = (rxTrig & 0x003C) >> 2;
+
+			// Collecting the bits rxTrig[1:0] and writing to 'fcrValue'
+			fcrValue |= (rxTrig & 0x0003) << UART_FCR_RX_FIFO_TRIG_SHIFT;
+
+			// Setting the RXTRIGGRANU1 bit of SCR register
+			reg32m(baseAdd, UART_SCR, UART_SCR_RX_TRIG_GRANU1);
+
 			// Programming the RX_FIFO_TRIG_DMA field of TLR register
 			reg32m(baseAdd, UART_TLR,
-					((rxTrig << UART_TLR_RX_FIFO_TRIG_DMA_SHIFT) & UART_TLR_RX_FIFO_TRIG_DMA));
+					(tlrValue << UART_TLR_RX_FIFO_TRIG_DMA_SHIFT));
+
 		}
-	} else {
-		// 'rxTrig' now has the 6-bit RX Trigger level value
-		rxTrig &= 0x003F;
 
-		// Collecting the bits rxTrig[5:2]
-		tlrValue = (rxTrig & 0x003C) >> 2;
+		// Setting the Transmitter FIFO trigger level
+		if (UART_TRIG_LVL_GRANULARITY_1 != txGra) {
+			// Clearing the TXTRIGGRANU1 bit in SCR
+			reg32a(baseAdd, UART_SCR, ~(UART_SCR_TX_TRIG_GRANU1));
 
-		// Collecting the bits rxTrig[1:0] and writing to 'fcrValue'
-		fcrValue |= (rxTrig & 0x0003) << UART_FCR_RX_FIFO_TRIG_SHIFT;
+			// Clearing the TX_FIFO_TRIG_DMA field of TLR register
+			reg32a(baseAdd, UART_TLR, ~(UART_TLR_TX_FIFO_TRIG_DMA));
 
-		// Setting the RXTRIGGRANU1 bit of SCR register
-		reg32m(baseAdd, UART_SCR, UART_SCR_RX_TRIG_GRANU1);
+			fcrValue &= ~(UART_FCR_TX_FIFO_TRIG);
 
-		// Programming the RX_FIFO_TRIG_DMA field of TLR register
-		reg32m(baseAdd, UART_TLR,
-				(tlrValue << UART_TLR_RX_FIFO_TRIG_DMA_SHIFT));
-
-	}
-
-	// Setting the Transmitter FIFO trigger level
-	if (UART_TRIG_LVL_GRANULARITY_1 != txGra) {
-		// Clearing the TXTRIGGRANU1 bit in SCR
-		reg32a(baseAdd, UART_SCR, ~(UART_SCR_TX_TRIG_GRANU1));
-
-		// Clearing the TX_FIFO_TRIG_DMA field of TLR register
-		reg32a(baseAdd, UART_TLR, ~(UART_TLR_TX_FIFO_TRIG_DMA));
-
-		fcrValue &= ~(UART_FCR_TX_FIFO_TRIG);
-
-		// Checking if 'txTrig' matches with the TX Trigger level values in FCR.
-		if ((UART_FCR_TX_TRIG_LVL_8 == (txTrig))
-				|| (UART_FCR_TX_TRIG_LVL_16 == (txTrig))
-				|| (UART_FCR_TX_TRIG_LVL_32 == (txTrig))
-				|| (UART_FCR_TX_TRIG_LVL_56 == (txTrig))) {
-			fcrValue |= (txTrig & UART_FCR_TX_FIFO_TRIG);
+			// Checking if 'txTrig' matches with the TX Trigger level values in FCR.
+			if ((UART_FCR_TX_TRIG_LVL_8 == (txTrig))
+					|| (UART_FCR_TX_TRIG_LVL_16 == (txTrig))
+					|| (UART_FCR_TX_TRIG_LVL_32 == (txTrig))
+					|| (UART_FCR_TX_TRIG_LVL_56 == (txTrig))) {
+				fcrValue |= (txTrig & UART_FCR_TX_FIFO_TRIG);
+			} else {
+				// TX Trigger level will be a multiple of 4
+				// Programming the TX_FIFO_TRIG_DMA field of TLR register
+				reg32m(baseAdd, UART_TLR,
+						((txTrig << UART_TLR_TX_FIFO_TRIG_DMA_SHIFT) & UART_TLR_TX_FIFO_TRIG_DMA));
+			}
 		} else {
-			// TX Trigger level will be a multiple of 4
+			// 'txTrig' now has the 6-bit TX Trigger level value
+			txTrig &= 0x003F;
+
+			// Collecting the bits txTrig[5:2]
+			tlrValue = (txTrig & 0x003C) >> 2;
+
+			// Collecting the bits txTrig[1:0] and writing to 'fcrValue'
+			fcrValue |= (txTrig & 0x0003) << UART_FCR_TX_FIFO_TRIG_SHIFT;
+
+			// Setting the TXTRIGGRANU1 bit of SCR register
+			reg32m(baseAdd, UART_SCR, UART_SCR_TX_TRIG_GRANU1);
+
 			// Programming the TX_FIFO_TRIG_DMA field of TLR register
 			reg32m(baseAdd, UART_TLR,
-					((txTrig << UART_TLR_TX_FIFO_TRIG_DMA_SHIFT) & UART_TLR_TX_FIFO_TRIG_DMA));
+					(tlrValue << UART_TLR_TX_FIFO_TRIG_DMA_SHIFT));
 		}
-	} else {
-		// 'txTrig' now has the 6-bit TX Trigger level value
-		txTrig &= 0x003F;
 
-		// Collecting the bits txTrig[5:2]
-		tlrValue = (txTrig & 0x003C) >> 2;
+		if (UART_DMA_EN_PATH_FCR == dmaEnPath) {
+			// Configuring the UART DMA Mode through FCR register
+			reg32a(baseAdd, UART_SCR, ~(UART_SCR_DMA_MODE_CTL));
 
-		// Collecting the bits txTrig[1:0] and writing to 'fcrValue'
-		fcrValue |= (txTrig & 0x0003) << UART_FCR_TX_FIFO_TRIG_SHIFT;
+			dmaMode &= 0x1;
 
-		// Setting the TXTRIGGRANU1 bit of SCR register
-		reg32m(baseAdd, UART_SCR, UART_SCR_TX_TRIG_GRANU1);
+			// Clearing the bit corresponding to the DMA_MODE in 'fcrValue'
+			fcrValue &= ~(UART_FCR_DMA_MODE);
 
-		// Programming the TX_FIFO_TRIG_DMA field of TLR register
-		reg32m(baseAdd, UART_TLR,
-				(tlrValue << UART_TLR_TX_FIFO_TRIG_DMA_SHIFT));
+			// Setting the DMA Mode of operation
+			fcrValue |= (dmaMode << UART_FCR_DMA_MODE_SHIFT);
+		} else {
+			dmaMode &= 0x3;
+
+			// Configuring the UART DMA Mode through SCR register
+			reg32m(baseAdd, UART_SCR, UART_SCR_DMA_MODE_CTL);
+
+			// Clearing the DMAMODE2 field in SCR
+			reg32a(baseAdd, UART_SCR, ~(UART_SCR_DMA_MODE_2));
+
+			// Programming the DMAMODE2 field in SCR
+			reg32m(baseAdd, UART_SCR, (dmaMode << UART_SCR_DMA_MODE_2_SHIFT));
+		}
+
+		// Programming the bits which clear the RX and TX FIFOs
+		fcrValue |= (rxClr << UART_FCR_RX_FIFO_CLEAR_SHIFT);
+		fcrValue |= (txClr << UART_FCR_TX_FIFO_CLEAR_SHIFT);
+
+		// Writing 'fcrValue' to the FIFO Control Register(FCR)
+		UartFIFORegisterWrite(baseAdd, fcrValue);
+
+		// Restoring the value of TCRTLR bit in MCR
+		UartTCRTLRBitValRestore(baseAdd, tcrTlrBitVal);
+
+		// Restoring the value of EFR[4] to the original value
+		UartEnhanFuncBitValRestore(baseAdd, enhanFnBitVal);
+
+		return fcrValue;
 	}
 
-	if (UART_DMA_EN_PATH_FCR == dmaEnPath) {
-		// Configuring the UART DMA Mode through FCR register
-		reg32a(baseAdd, UART_SCR, ~(UART_SCR_DMA_MODE_CTL));
+	/**
+	 * \brief sets a certain bit in Enhanced Feature Register(EFR) which
+	 * 		  shall avail the UART to use some Enhanced Features
+	 *
+	 * \see uart_irda_cir.c::UARTEnhanFuncEnable
+	 */
+	uint32_t UartEnhanFuncEnable(uint32_t baseAdd) {
+		uint32_t enhanFnBitVal = 0;
+		uint32_t lcrRegValue = 0;
 
-		dmaMode &= 0x1;
+		/* Enabling Configuration Mode B of operation. */
+		lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
 
-		// Clearing the bit corresponding to the DMA_MODE in 'fcrValue'
-		fcrValue &= ~(UART_FCR_DMA_MODE);
+		/* Collecting the current value of ENHANCEDEN bit of EFR. */
+		enhanFnBitVal = (reg32r(baseAdd, UART_EFR) & UART_EFR_ENHANCED_EN);
 
-		// Setting the DMA Mode of operation
-		fcrValue |= (dmaMode << UART_FCR_DMA_MODE_SHIFT);
-	} else {
-		dmaMode &= 0x3;
+		/* Setting the ENHANCEDEN bit in EFR register. */
+		reg32m(baseAdd, UART_EFR, UART_EFR_ENHANCED_EN);
 
-		// Configuring the UART DMA Mode through SCR register
-		reg32m(baseAdd, UART_SCR, UART_SCR_DMA_MODE_CTL);
+		/* Programming LCR with the collected value. */
+		reg32w(baseAdd, UART_LCR, lcrRegValue);
 
-		// Clearing the DMAMODE2 field in SCR
-		reg32a(baseAdd, UART_SCR, ~(UART_SCR_DMA_MODE_2));
-
-		// Programming the DMAMODE2 field in SCR
-		reg32m(baseAdd, UART_SCR, (dmaMode << UART_SCR_DMA_MODE_2_SHIFT));
+		return enhanFnBitVal;
 	}
 
-	// Programming the bits which clear the RX and TX FIFOs
-	fcrValue |= (rxClr << UART_FCR_RX_FIFO_CLEAR_SHIFT);
-	fcrValue |= (txClr << UART_FCR_TX_FIFO_CLEAR_SHIFT);
+	/**
+	 * \brief configures the specified Register Configuration mode for
+	 *        the UART
+	 *
+	 * \see uart_irda_cir.c::UARTRegConfigModeEnable
+	 */
+	static uint32_t UartRegConfigModeEnable(uint32_t baseAdd, uint32_t modeFlag) {
+		uint32_t lcrRegValue = 0;
 
-	// Writing 'fcrValue' to the FIFO Control Register(FCR)
-	UartFIFORegisterWrite(baseAdd, fcrValue);
+		/* Preserving the current value of LCR. */
+		lcrRegValue = reg32r(baseAdd, UART_LCR);
 
-	// Restoring the value of TCRTLR bit in MCR
-	UartTCRTLRBitValRestore(baseAdd, tcrTlrBitVal);
+		switch (modeFlag) {
+		case UART_REG_CONFIG_MODE_A:
+		case UART_REG_CONFIG_MODE_B:
+			reg32w(baseAdd, UART_LCR, modeFlag & 0xFF);
+			break;
 
-	// Restoring the value of EFR[4] to the original value
-	UartEnhanFuncBitValRestore(baseAdd, enhanFnBitVal);
+		case UART_REG_OPERATIONAL_MODE:
+			reg32a(baseAdd, UART_LCR, 0x7F);
+			break;
 
-	return fcrValue;
-}
+		default:
+			break;
+		}
 
-/**
- * \brief sets a certain bit in Enhanced Feature Register(EFR) which
- * 		  shall avail the UART to use some Enhanced Features
- *
- * \see uart_irda_cir.c::UARTEnhanFuncEnable
- */
-uint32_t UartEnhanFuncEnable(uint32_t baseAdd) {
-	uint32_t enhanFnBitVal = 0;
-	uint32_t lcrRegValue = 0;
-
-	/* Enabling Configuration Mode B of operation. */
-	lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
-
-	/* Collecting the current value of ENHANCEDEN bit of EFR. */
-	enhanFnBitVal = (reg32r(baseAdd, UART_EFR) & UART_EFR_ENHANCED_EN);
-
-	/* Setting the ENHANCEDEN bit in EFR register. */
-	reg32m(baseAdd, UART_EFR, UART_EFR_ENHANCED_EN);
-
-	/* Programming LCR with the collected value. */
-	reg32w(baseAdd, UART_LCR, lcrRegValue);
-
-	return enhanFnBitVal;
-}
-
-/**
- * \brief configures the specified Register Configuration mode for
- *        the UART
- *
- * \see uart_irda_cir.c::UARTRegConfigModeEnable
- */
-static uint32_t UartRegConfigModeEnable(uint32_t baseAdd, uint32_t modeFlag) {
-	uint32_t lcrRegValue = 0;
-
-	/* Preserving the current value of LCR. */
-	lcrRegValue = reg32r(baseAdd, UART_LCR);
-
-	switch (modeFlag) {
-	case UART_REG_CONFIG_MODE_A:
-	case UART_REG_CONFIG_MODE_B:
-		reg32w(baseAdd, UART_LCR, modeFlag & 0xFF);
-		break;
-
-	case UART_REG_OPERATIONAL_MODE:
-		reg32a(baseAdd, UART_LCR, 0x7F);
-		break;
-
-	default:
-		break;
+		return lcrRegValue;
 	}
 
-	return lcrRegValue;
-}
+	/**
+	 * \brief enables the TCR_TLR Sub_Configuration Mode of operation
+	 *
+	 * \see uart_irda_cir.c::UARTSubConfigTCRTLRModeEn
+	 */
+	static uint32_t UartSubConfigTCRTLRModeEn(uint32_t baseAdd) {
+		uint32_t enhanFnBitVal = 0;
+		uint32_t tcrTlrValue = 0;
+		uint32_t lcrRegValue = 0;
 
-/**
- * \brief enables the TCR_TLR Sub_Configuration Mode of operation
- *
- * \see uart_irda_cir.c::UARTSubConfigTCRTLRModeEn
- */
-static uint32_t UartSubConfigTCRTLRModeEn(uint32_t baseAdd) {
-	uint32_t enhanFnBitVal = 0;
-	uint32_t tcrTlrValue = 0;
-	uint32_t lcrRegValue = 0;
+		/* Switching to Register Configuration Mode B. */
+		lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
 
-	/* Switching to Register Configuration Mode B. */
-	lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
+		/* Collecting the current value of EFR[4] and later setting it. */
+		enhanFnBitVal = reg32r(baseAdd, UART_EFR) & UART_EFR_ENHANCED_EN;
+		reg32m(baseAdd, UART_EFR, UART_EFR_ENHANCED_EN);
 
-	/* Collecting the current value of EFR[4] and later setting it. */
-	enhanFnBitVal = reg32r(baseAdd, UART_EFR) & UART_EFR_ENHANCED_EN;
-	reg32m(baseAdd, UART_EFR, UART_EFR_ENHANCED_EN);
+		/* Switching to Register Configuration Mode A. */
+		UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_A);
 
-	/* Switching to Register Configuration Mode A. */
-	UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_A);
+		/* Collecting the bit value of MCR[6]. */
+		tcrTlrValue = (reg32r(baseAdd, UART_MCR) & UART_MCR_TCR_TLR);
 
-	/* Collecting the bit value of MCR[6]. */
-	tcrTlrValue = (reg32r(baseAdd, UART_MCR) & UART_MCR_TCR_TLR);
+		/* Setting the TCRTLR bit in Modem Control Register(MCR). */
+		reg32m(baseAdd, UART_MCR, UART_MCR_TCR_TLR);
 
-	/* Setting the TCRTLR bit in Modem Control Register(MCR). */
-	reg32m(baseAdd, UART_MCR, UART_MCR_TCR_TLR);
+		/* Switching to Register Configuration Mode B. */
+		UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
 
-	/* Switching to Register Configuration Mode B. */
-	UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_B);
+		/* Restoring the value of EFR[4] to its original value. */
+		reg32a(baseAdd, UART_EFR, ~(UART_EFR_ENHANCED_EN));
+		reg32m(baseAdd, UART_EFR, enhanFnBitVal);
 
-	/* Restoring the value of EFR[4] to its original value. */
-	reg32a(baseAdd, UART_EFR, ~(UART_EFR_ENHANCED_EN));
-	reg32m(baseAdd, UART_EFR, enhanFnBitVal);
+		/* Restoring the value of LCR. */
+		reg32w(baseAdd, UART_LCR, lcrRegValue);
 
-	/* Restoring the value of LCR. */
-	reg32w(baseAdd, UART_LCR, lcrRegValue);
+		return tcrTlrValue;
+	}
 
-	return tcrTlrValue;
-}
+	/**
+	 * \brief write a specified value to the FIFO Control Register(FCR)
+	 *
+	 * \see uart_irda_cir.c::UARTFIFORegisterWrite
+	 */
+	static void UartFIFORegisterWrite(uint32_t baseAdd, uint32_t fcrValue) {
+		uint32_t divLatchRegVal = 0;
+		uint32_t enhanFnBitVal = 0;
+		uint32_t lcrRegValue = 0;
 
-/**
- * \brief write a specified value to the FIFO Control Register(FCR)
- *
- * \see uart_irda_cir.c::UARTFIFORegisterWrite
- */
-static void UartFIFORegisterWrite(uint32_t baseAdd, uint32_t fcrValue) {
-	uint32_t divLatchRegVal = 0;
-	uint32_t enhanFnBitVal = 0;
-	uint32_t lcrRegValue = 0;
+		// Switching to Register Configuration Mode A of operation
+		lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_A);
 
-	// Switching to Register Configuration Mode A of operation
-	lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_CONFIG_MODE_A);
+		// Clearing the contents of Divisor Latch Registers
+		divLatchRegVal = UartDivisorLatchWrite(baseAdd, 0x0000);
 
-	// Clearing the contents of Divisor Latch Registers
-	divLatchRegVal = UartDivisorLatchWrite(baseAdd, 0x0000);
+		// Set the EFR[4] bit to 1
+		enhanFnBitVal = UartEnhanFuncEnable(baseAdd);
 
-	// Set the EFR[4] bit to 1
-	enhanFnBitVal = UartEnhanFuncEnable(baseAdd);
+		// Writing the 'fcrValue' to the FCR register
+		reg32w(baseAdd, UART_FCR, fcrValue);
 
-	// Writing the 'fcrValue' to the FCR register
-	reg32w(baseAdd, UART_FCR, fcrValue);
+		// Restoring the value of EFR[4] to its original value
+		UartEnhanFuncBitValRestore(baseAdd, enhanFnBitVal);
 
-	// Restoring the value of EFR[4] to its original value
-	UartEnhanFuncBitValRestore(baseAdd, enhanFnBitVal);
+		// Programming the Divisor Latch Registers with the collected value
+		UartDivisorLatchWrite(baseAdd, divLatchRegVal);
 
-	// Programming the Divisor Latch Registers with the collected value
-	UartDivisorLatchWrite(baseAdd, divLatchRegVal);
+		// Reinstating LCR with its original value
+		reg32w(baseAdd, UART_LCR, lcrRegValue);
+	}
 
-	// Reinstating LCR with its original value
-	reg32w(baseAdd, UART_LCR, lcrRegValue);
-}
+	/**
+	 * \brief  write the specified divisor value to Divisor Latch registers DLL and DLH
+	 *
+	 * \see uart_irda_cir.c::UARTDivisorLatchWrite
+	 */
+	static uint32_t UartDivisorLatchWrite(uint32_t baseAddr,
+			uint32_t divisorValue) {
+		volatile uint32_t enhanFnBitVal = 0;
+		volatile uint32_t sleepMdBitVal = 0;
+		volatile uint32_t lcrRegValue = 0;
+		volatile uint32_t operMode = 0;
+		uint32_t divRegVal = 0;
 
-/**
- * \brief  write the specified divisor value to Divisor Latch registers DLL and DLH
- *
- * \see uart_irda_cir.c::UARTDivisorLatchWrite
- */
-static uint32_t UartDivisorLatchWrite(uint32_t baseAddr, uint32_t divisorValue) {
-	volatile uint32_t enhanFnBitVal = 0;
-	volatile uint32_t sleepMdBitVal = 0;
-	volatile uint32_t lcrRegValue = 0;
-	volatile uint32_t operMode = 0;
-	uint32_t divRegVal = 0;
+		// Switching to Register Configuration Mode B
+		lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
-	// Switching to Register Configuration Mode B
-	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+		// Collecting the current value of EFR[4] and later setting it
+		enhanFnBitVal = reg32r(baseAddr, UART_EFR) & UART_EFR_ENHANCED_EN;
+		reg32m(baseAddr, UART_EFR, UART_EFR_ENHANCED_EN);
 
-	// Collecting the current value of EFR[4] and later setting it
-	enhanFnBitVal = reg32r(baseAddr, UART_EFR) & UART_EFR_ENHANCED_EN;
-	reg32m(baseAddr, UART_EFR, UART_EFR_ENHANCED_EN);
+		// Switching to Register Operational Mode
+		UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
 
-	// Switching to Register Operational Mode
-	UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
+		//Collecting the current value of IER[4](SLEEPMODE bit) and later clearing it
+		sleepMdBitVal = reg32r(baseAddr, UART_IER) & UART_IER_SLEEP_MODE_IT;
+		reg32a(baseAddr, UART_IER, ~(UART_IER_SLEEP_MODE_IT));
 
-	//Collecting the current value of IER[4](SLEEPMODE bit) and later clearing it
-	sleepMdBitVal = reg32r(baseAddr, UART_IER) & UART_IER_SLEEP_MODE_IT;
-	reg32a(baseAddr, UART_IER, ~(UART_IER_SLEEP_MODE_IT));
+		// Switching to Register Configuration Mode B
+		UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
-	// Switching to Register Configuration Mode B
-	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+		// Collecting the current value of Divisor Latch Registers
+		divRegVal = reg32r(baseAddr, UART_DLL) & 0xFF;
+		divRegVal |= ((reg32r(baseAddr, UART_DLH) & 0x3F) << 8);
 
-	// Collecting the current value of Divisor Latch Registers
-	divRegVal = reg32r(baseAddr, UART_DLL) & 0xFF;
-	divRegVal |= ((reg32r(baseAddr, UART_DLH) & 0x3F) << 8);
+		// Switch the UART instance to Disabled state
+		operMode = UartOperatingModeSelect(baseAddr,
+				UART_MDR1_MODE_SELECT_DISABLED);
 
-	// Switch the UART instance to Disabled state
-	operMode = UartOperatingModeSelect(baseAddr,
-			UART_MDR1_MODE_SELECT_DISABLED);
+		// Writing to Divisor Latch Low(DLL) register
+		reg32w(baseAddr, UART_DLL, divisorValue & 0x00FF);
 
-	// Writing to Divisor Latch Low(DLL) register
-	reg32w(baseAddr, UART_DLL, divisorValue & 0x00FF);
+		// Writing to Divisor Latch High(DLH) register
+		reg32w(baseAddr, UART_DLH, ((divisorValue & 0x3F00) >> 8));
 
-	// Writing to Divisor Latch High(DLH) register
-	reg32w(baseAddr, UART_DLH, ((divisorValue & 0x3F00) >> 8));
+		// Restoring the Operating Mode of UART
+		UartOperatingModeSelect(baseAddr, operMode);
 
-	// Restoring the Operating Mode of UART
-	UartOperatingModeSelect(baseAddr, operMode);
+		// Switching to Register Operational Mode
+		UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
 
-	// Switching to Register Operational Mode
-	UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
+		// Restoring the value of IER[4] to its original value
+		reg32m(baseAddr, UART_IER, sleepMdBitVal);
 
-	// Restoring the value of IER[4] to its original value
-	reg32m(baseAddr, UART_IER, sleepMdBitVal);
+		// Switching to Register Configuration Mode B
+		UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
-	// Switching to Register Configuration Mode B
-	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+		// Restoring the value of EFR[4] to its original value
+		reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
+		reg32m(baseAddr, UART_EFR, enhanFnBitVal);
 
-	// Restoring the value of EFR[4] to its original value
-	reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
-	reg32m(baseAddr, UART_EFR, enhanFnBitVal);
+		/* Restoring the value of LCR Register. */
+		reg32w(baseAddr, UART_LCR, lcrRegValue);
 
-	/* Restoring the value of LCR Register. */
-	reg32w(baseAddr, UART_LCR, lcrRegValue);
+		return divRegVal;
+	}
 
-	return divRegVal;
-}
+	/**
+	 * \brief restores the ENHANCEDEN bit value of EFR register(EFR[4]) to the corresponding bit
+	 * 		  value in 'enhanFnBitVal' passed as a parameter to this API.
+	 *
+	 * \see uart_irda_cir.c::UARTEnhanFuncBitValRestore
+	 */
+	static void UartEnhanFuncBitValRestore(uint32_t baseAddr,
+			uint32_t enhanFnBitVal) {
+		uint32_t lcrRegValue = 0;
 
-/**
- * \brief restores the ENHANCEDEN bit value of EFR register(EFR[4]) to the corresponding bit
- * 		  value in 'enhanFnBitVal' passed as a parameter to this API.
- *
- * \see uart_irda_cir.c::UARTEnhanFuncBitValRestore
- */
-static void UartEnhanFuncBitValRestore(uint32_t baseAddr,
-		uint32_t enhanFnBitVal) {
-	uint32_t lcrRegValue = 0;
+		// Enabling Configuration Mode B of operation
+		lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
-	// Enabling Configuration Mode B of operation
-	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+		// Restoring the value of EFR[4]
+		reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
+		reg32m(baseAddr, UART_EFR, (enhanFnBitVal & UART_EFR_ENHANCED_EN));
 
-	// Restoring the value of EFR[4]
-	reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
-	reg32m(baseAddr, UART_EFR, (enhanFnBitVal & UART_EFR_ENHANCED_EN));
+		// Programming LCR with the collected value
+		reg32w(baseAddr, UART_LCR, lcrRegValue);
+	}
 
-	// Programming LCR with the collected value
-	reg32w(baseAddr, UART_LCR, lcrRegValue);
-}
+	/**
+	 * \brief configures the operating mode for the UART instance.
+	 *        The different operating modes are:
+	 *           - UART(16x, 13x, 16x Auto-Baud)
+	 *           - IrDA(SIR, MIR, FIR)
+	 *           - CIR
+	 *           - Disabled state(default state)
+	 *
+	 * \see uart_irda_cir.c::UARTOperatingModeSelect
+	 */
+	static uint32_t UartOperatingModeSelect(uint32_t baseAddr,
+			uint32_t modeFlag) {
+		uint32_t operMode = 0;
 
-/**
- * \brief configures the operating mode for the UART instance.
- *        The different operating modes are:
- *           - UART(16x, 13x, 16x Auto-Baud)
- *           - IrDA(SIR, MIR, FIR)
- *           - CIR
- *           - Disabled state(default state)
- *
- * \see uart_irda_cir.c::UARTOperatingModeSelect
- */
-static uint32_t UartOperatingModeSelect(uint32_t baseAddr, uint32_t modeFlag) {
-	uint32_t operMode = 0;
+		operMode = (reg32r(baseAddr, UART_MDR1) & UART_MDR1_MODE_SELECT);
 
-	operMode = (reg32r(baseAddr, UART_MDR1) & UART_MDR1_MODE_SELECT);
+		/* Clearing the MODESELECT field in MDR1. */
+		reg32a(baseAddr, UART_MDR1, ~(UART_MDR1_MODE_SELECT));
+		/* Programming the MODESELECT field in MDR1. */
+		reg32m(baseAddr, UART_MDR1, (modeFlag & UART_MDR1_MODE_SELECT));
 
-	/* Clearing the MODESELECT field in MDR1. */
-	reg32a(baseAddr, UART_MDR1, ~(UART_MDR1_MODE_SELECT));
-	/* Programming the MODESELECT field in MDR1. */
-	reg32m(baseAddr, UART_MDR1, (modeFlag & UART_MDR1_MODE_SELECT));
+		return operMode;
+	}
 
-	return operMode;
-}
+	/**
+	 * \brief restores the TCRTLR bit(MCR[6]) value in Modem Control Register(MCR) to the
+	 *  	  corresponding bit value in 'tcrTlrBitVal' passed as a parameter to this API
+	 *
+	 * \see uart_irda_cir.c::UARTTCRTLRBitValRestore
+	 */
+	static void UartTCRTLRBitValRestore(uint32_t baseAddr,
+			uint32_t tcrTlrBitVal) {
+		uint32_t enhanFnBitVal = 0;
+		uint32_t lcrRegValue = 0;
 
-/**
- * \brief restores the TCRTLR bit(MCR[6]) value in Modem Control Register(MCR) to the
- *  	  corresponding bit value in 'tcrTlrBitVal' passed as a parameter to this API
- *
- * \see uart_irda_cir.c::UARTTCRTLRBitValRestore
- */
-static void UartTCRTLRBitValRestore(uint32_t baseAddr, uint32_t tcrTlrBitVal) {
-	uint32_t enhanFnBitVal = 0;
-	uint32_t lcrRegValue = 0;
+		// Switching to Register Configuration Mode B
+		lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
-	// Switching to Register Configuration Mode B
-	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+		// Collecting the current value of EFR[4] and later setting it
+		enhanFnBitVal = reg32r(baseAddr, UART_EFR) & UART_EFR_ENHANCED_EN;
+		reg32m(baseAddr, UART_EFR, UART_EFR_ENHANCED_EN);
 
-	// Collecting the current value of EFR[4] and later setting it
-	enhanFnBitVal = reg32r(baseAddr, UART_EFR) & UART_EFR_ENHANCED_EN;
-	reg32m(baseAddr, UART_EFR, UART_EFR_ENHANCED_EN);
+		// Switching to Configuration Mode A of operation
+		UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_A);
 
-	// Switching to Configuration Mode A of operation
-	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_A);
+		// Programming MCR[6] with the corresponding bit value in 'tcrTlrBitVal'
+		reg32a(baseAddr, UART_MCR, ~(UART_MCR_TCR_TLR));
+		reg32m(baseAddr, UART_MCR, (tcrTlrBitVal & UART_MCR_TCR_TLR));
 
-	// Programming MCR[6] with the corresponding bit value in 'tcrTlrBitVal'
-	reg32a(baseAddr, UART_MCR, ~(UART_MCR_TCR_TLR));
-	reg32m(baseAddr, UART_MCR, (tcrTlrBitVal & UART_MCR_TCR_TLR));
+		// Switching to Register Configuration Mode B
+		UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
 
-	// Switching to Register Configuration Mode B
-	UartRegConfigModeEnable(baseAddr, UART_REG_CONFIG_MODE_B);
+		/* Restoring the value of EFR[4] to its original value. */
+		reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
+		reg32m(baseAddr, UART_EFR, enhanFnBitVal);
 
-	/* Restoring the value of EFR[4] to its original value. */
-	reg32a(baseAddr, UART_EFR, ~(UART_EFR_ENHANCED_EN));
-	reg32m(baseAddr, UART_EFR, enhanFnBitVal);
+		/* Restoring the value of LCR. */
+		reg32w(baseAddr, UART_LCR, lcrRegValue);
+	}
 
-	/* Restoring the value of LCR. */
-	reg32w(baseAddr, UART_LCR, lcrRegValue);
-}
+	/**
+	 * \brief returns type of uart interrupt
+	 *
+	 * \see uart_irda_cir.c::UARTIntIdentityGet
+	 */
+	uint32_t UartIntIdentityGet(uint32_t baseAdd) {
+		uint32_t lcrRegValue = 0;
+		uint32_t retVal = 0;
 
-/**
- * \brief returns type of uart interrupt
- *
- * \see uart_irda_cir.c::UARTIntIdentityGet
- */
-uint32_t UartIntIdentityGet(uint32_t baseAdd) {
-	uint32_t lcrRegValue = 0;
-	uint32_t retVal = 0;
+		// Switching to Register Operational Mode of operation
+		lcrRegValue = UartRegConfigModeEnable(baseAdd,
+				UART_REG_OPERATIONAL_MODE);
 
-	// Switching to Register Operational Mode of operation
-	lcrRegValue = UartRegConfigModeEnable(baseAdd, UART_REG_OPERATIONAL_MODE);
+		retVal = (reg32r(baseAdd, UART_IIR) & UART_IIR_IT_TYPE);
 
-	retVal = (reg32r(baseAdd, UART_IIR) & UART_IIR_IT_TYPE);
+		/* Restoring the value of LCR. */
+		reg32w(baseAdd, UART_LCR, lcrRegValue);
 
-	/* Restoring the value of LCR. */
-	reg32w(baseAdd, UART_LCR, lcrRegValue);
-
-	return retVal;
-}
+		return retVal;
+	}

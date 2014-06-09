@@ -130,3 +130,20 @@ static void IntDefaultResetHandler(void) {
 	;
 }
 
+/**
+ * \brief  Enables the processor IRQ only in CPSR. Makes the processor to
+ *         respond to IRQs.  This does not affect the set of interrupts
+ *         enabled/disabled in the AINTC.
+ *
+ * \param    None
+ *
+ * \return   None
+ *
+ *  Note: This function call shall be done only in previleged mode of ARM
+ **/
+void IntMasterIRQEnable(void)
+{
+    /* Enable IRQ in CPSR.*/
+    CPUirqe();
+
+}

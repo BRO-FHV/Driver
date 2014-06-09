@@ -12,6 +12,7 @@
 
 #include <inttypes.h>
 #include <uart/hw_uart.h>
+#include <stdio.h>
 
 // Values to configure the Operating modes of UART.
 #define UART16x_OPER_MODE                   (UART_MDR1_MODE_SELECT_UART16X)
@@ -256,6 +257,7 @@ void UartIntDisable(uint32_t baseAddr, uint32_t intFlag);
  *         calling this function has the responsibility of checking the TX
  *         FIFO status before using this API
  */
-uint32_t UartWrite(uint32_t baseAddr, char *pBuffer, uint32_t numTxBytes);
+uint32_t UartWrite(uint32_t baseAddr, const char *pBuffer, uint32_t numTxBytes);
+void UartWritef(uint32_t baseAddr,const char* string, va_list vaArg);
 
 #endif /* UART_H_ */
