@@ -63,7 +63,6 @@
 #include "interrupt/dr_interrupt.h"
 #include "timer/dr_timer.h"
 #include "eth/phy/dr_phy.h"
-#include "cache.h"
 #include "basic.h"
 
 /* CPPI RAM size in bytes */

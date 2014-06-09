@@ -8,6 +8,7 @@
  */
 #include <stdio.h>
 #include "dr_eth.h"
+#include "scheduler.h"
 #include "cpsw/dr_cpsw.h"
 #include "lwip/lwiplib.h"
 #include "../timer/dr_timer.h"
@@ -108,8 +109,8 @@ void InterruptSetup() {
 /*
  ** Interrupt Handler for receive interrupt
  */
-void CPSWCore0RxIsr() {
-	asm("	CPS		0x1F");
+void CPSWCore0RxIsr(Context* context) {
+	//asm("	CPS		0x1F");
 
 	lwIPRxIntHandler(0);
 }
@@ -117,6 +118,6 @@ void CPSWCore0RxIsr() {
 /*
  ** Interrupt Handler for transmit interrupt
  */
-void CPSWCore0TxIsr() {
+void CPSWCore0TxIsr(Context* context) {
 	lwIPTxIntHandler(0);
 }
