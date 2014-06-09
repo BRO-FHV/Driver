@@ -50,4 +50,4 @@ void TimerDelayStart(uint32_t milliSec);
 void TimerDelayStop();
 uint32_t TimerDelayIsElapsed();
 
-#endif /* DR_TIMER_H_ */
+#endif
