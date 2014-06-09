@@ -579,17 +579,6 @@ Boolean UartAvailable(unsigned int baseAddr) {
 }
 
 /**
- * \brief returns TRUE if available chars exists
- */
-tBoolean UartAvailable(unsigned int baseAddr) {
-	uint32_t lcrRegValue = 0;
-	uint32_t retVal = 0;
-
-	// Switching to Register Operational Mode of operation
-	lcrRegValue = UartRegConfigModeEnable(baseAddr, UART_REG_OPERATIONAL_MODE);
-}
-
-/**
  * \brief handles uart interrupt
  */
 void UartInterrupt(void) {
