@@ -44,6 +44,7 @@ int32_t TimerReset(Timer timer);
 
 int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine routine);
 
+void TimerDelaySetup();
 void TimerDelayDelay(uint32_t milliSec);
 void TimerDelayStart(uint32_t milliSec);
 void TimerDelayStop();

@@ -23,6 +23,9 @@
 **                      INTERNAL MACRO DEFINITIONS
 *******************************************************************************/
 
+/* Delay */
+#define delay TimerDelayDelay
+
 /* Frequency */
 #define HSMMCSD_IN_FREQ                96000000 /* 96MHz */
 #define HSMMCSD_INIT_FREQ              400000   /* 400kHz */
