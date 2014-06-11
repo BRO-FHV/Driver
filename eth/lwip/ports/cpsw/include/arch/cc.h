@@ -63,7 +63,7 @@ typedef u32_t           mem_ptr_t;
     #define PACK_STRUCT_USE_INCLUDES
 #elif defined (__TMS470__)
     #define PACK_STRUCT_BEGIN
-    #define PACK_STRUCT_STRUCT
+    #define PACK_STRUCT_STRUCT __attribute__ ((__packed__))
     #define PACK_STRUCT_END
     #define PACK_STRUCT_FIELD(x) x
 #else
