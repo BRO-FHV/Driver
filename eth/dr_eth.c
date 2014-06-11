@@ -8,7 +8,6 @@
  */
 #include <stdio.h>
 #include "dr_eth.h"
-#include "scheduler.h"
 #include "cpsw/dr_cpsw.h"
 #include "lwip/ports/cpsw/include/lwiplib.h"
 #include "../timer/dr_timer.h"
@@ -71,8 +70,6 @@ uint32_t ConfigureCore(uint32_t ip) {
 	lwipIfPort1.ipAddr = ip;
     lwipIfPort1.netMask = 0;
     lwipIfPort1.gwAddr = 0;
-//	lwipIfPort1.netMask = 0xFFFFFF00u;//0xFFFFFF00u => 255.255.255.0
-//	lwipIfPort1.gwAddr = 0xC0A80064u; //0xC0A80064u => 192.168.0.1
 
 	uint32_t ipAddr = (uint32_t)lwIPInit(&lwipIfPort1);
 
@@ -109,7 +106,7 @@ void InterruptSetup() {
 /*
  ** Interrupt Handler for receive interrupt
  */
-void CPSWCore0RxIsr(Context* context) {
+void CPSWCore0RxIsr() {
 	//asm("	CPS		0x1F");
 
 	lwIPRxIntHandler(0);
@@ -118,6 +115,6 @@ void CPSWCore0RxIsr(Context* context) {
 /*
  ** Interrupt Handler for transmit interrupt
  */
-void CPSWCore0TxIsr(Context* context) {
+void CPSWCore0TxIsr() {
 	lwIPTxIntHandler(0);
 }

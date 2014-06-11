@@ -235,4 +235,3 @@ swi_handler:
 
  	; TODO: when a process-switch was performed: MOVS	PC, LR should be enough, otherwise we must return to the instruction which was canceled by IRQ thus using SUBS
  	MOVS	PC, LR					; return from IRQ
-
