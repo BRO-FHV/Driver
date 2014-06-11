@@ -52,7 +52,7 @@ static uint16_t timers[NUMBER_OF_TIMERS];
 static const uint8_t TIMER_FACTOR = 32;
 
 typedef enum {
-	IrqMode_MATCH = 0, IrqMode_OVERFLOW, IrqMode_CAPTURE, IrqMode_ALL, IqrMode_OFF
+	IrqMode_MATCH = 0, IrqMode_OVERFLOW, IrqMode_CAPTURE, IrqMode_ALL, IrqMode_OFF
 } IrqMode;
 
 typedef enum {
@@ -243,7 +243,7 @@ void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, u
  *
  * \return TRUE on success, FALSE on failure
  */
-int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine routine) {
+int32_t TimerConfiguration(Timer timer, uint32_t milliSec, InterruptRoutine routine) {
 	if (1 == timers[timer] || NULL == routine) {
 		return FALSE; //timer is already enabled or routine is not set
 	}
@@ -266,30 +266,31 @@ int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine 
 		ConfigurationCore(baseAddr, TIMER1_TLDR, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TWER, TIMER1_TIER, TIMER1_TSICR, TIMER1_TWPS, TIMER1_TCRR);
 	} else {
 		//TMAR should be less than 0xFFFF FFFF
-		uint32_t matchValue = milliseconds * TIMER_FACTOR;
-		if(UINT32_MAX == matchValue || 0 >= matchValue) {
-			return FALSE;
-		}
-
-//	    uint32_t countVal = TIMER_OVERFLOW - (milliSec * TIMER_1MS_COUNT);
-//	    // Set the counter value
-//		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, baseAddr)
-//	    reg32w(baseAddr, TIMER_TCRR, value);
-//		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, baseAddr)
+//		uint32_t matchValue = milliseconds * TIMER_FACTOR;
+//		if(UINT32_MAX == matchValue || 0 >= matchValue) {
+//			return FALSE;
+//		}
 
 		//timer 2 - 7
-		if(IsClockModuleTimerEnabled(timer)) {
-			DisableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
-			ResetCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
-		} else {
-			ClockModuleEnable(timer);
-		}
+		DisableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+		ResetCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
+		ClockModuleEnable(timer);
 
 		ConfigurationCore(baseAddr, TIMER_TLDR, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_IRQWAKEEN, TIMER_IRQENABLE_SET, TIMER_TSICR, TIMER_TWPS, TIMER_TCRR);
 
-		//defines the match value (e.g. interrupt is raised, if this value is reached)
-		reg32wor(baseAddr, TIMER_TMAR, matchValue);
-		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TMAR, baseAddr)
+//		//defines the match value (e.g. interrupt is raised, if this value is reached)
+//		reg32wor(baseAddr, TIMER_TMAR, matchValue);
+//		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TMAR, baseAddr)
+
+	    uint32_t countVal = TIMER_OVERFLOW - (milliSec * TIMER_1MS_COUNT);
+	    // Set the counter value
+		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, baseAddr)
+	    reg32w(baseAddr, TIMER_TCRR, countVal);
+		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, baseAddr)
+
+		//defines where the timer should start to count (e.g. after a auto reload)
+		reg32wor(baseAddr, TIMER_TLDR, countVal);
+		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TLDR, baseAddr)
 	}
 
 	//configure interrupt routine
@@ -305,21 +306,17 @@ void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t
 	//enable posted mode for checking pending writes
 	EnablePostedMode(baseAddr, tsicr);
 
-	//defines where the timer should start to count (e.g. after a auto reload)
-	reg32wor(baseAddr, tldr, 0x00);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TLDR, baseAddr)
-
 	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
 	//Reload will be done regardless of the AR field value of TCLR register.
-	reg32wor(baseAddr, ttgr, TRIGGER_VALUE);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr)
+//	reg32wor(baseAddr, ttgr, TRIGGER_VALUE);
+//	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr)
 
 	//set compare enabled and auto reload
 	reg32wor(baseAddr, tclr, TCLR_CE + TCLR_AR);
 	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
 
-	SetIrqWakeenMode(baseAddr, IrqWakeen_MAT_WUP_ENA, twer);
-	SetIrqMode(baseAddr, IrqMode_MATCH, tier);
+	SetIrqWakeenMode(baseAddr, IrqWakeen_ALL, twer);
+	SetIrqMode(baseAddr, IrqMode_ALL, tier);
 
 	//clear pending interrupts
 	ResetTimerIrqStatusCore(baseAddr, tisr, tsicr, tcrr, twps, ttgr);
@@ -461,7 +458,7 @@ void SetIrqMode(uint32_t baseAddr, IrqMode irqMode, uint32_t irqRegister) {
 	case IrqMode_ALL:
 		reg32wor(baseAddr, irqRegister, IRQENABLE_OVF_EN_FLAG + IRQENABLE_MAT_EN_FLAG + IRQENABLE_TCAR_EN_FLAG);
 		break;
-	case IqrMode_OFF:
+	case IrqMode_OFF:
 		reg32w(baseAddr, irqRegister, 0);
 		break;
 	default:
@@ -604,23 +601,23 @@ void ClockModuleEnable(Timer timer) {
 	    wait((reg32r(SOC_CM_WKUP_REGS, CM_WKUP_TIMER1_CLKCTRL) & CM_WKUP_TIMER1_CLKCTRL_IDLEST) != CM_WKUP_TIMER1_CLKCTRL_IDLEST_FUNC);
 		break;
 	case Timer_TIMER2:
-		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER2_CLK, CM_DPLL_CLKSEL_TIMER2_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER2_CLK_CLKSEL_SEL3, CM_PER_TIMER2_CLKCTRL,
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER2_CLK, CM_DPLL_CLKSEL_TIMER2_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER2_CLK_CLKSEL_CLK_M_OSC, CM_PER_TIMER2_CLKCTRL,
 								CM_PER_TIMER2_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER2_CLKCTRL_MODULEMODE, CM_PER_TIMER2_CLKCTRL_IDLEST, CM_PER_TIMER2_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER2_GCLK);
 		break;
 	case Timer_TIMER3:
-		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER3_CLK, CM_DPLL_CLKSEL_TIMER3_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER3_CLK_CLKSEL_SEL3, CM_PER_TIMER3_CLKCTRL,
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER3_CLK, CM_DPLL_CLKSEL_TIMER3_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER3_CLK_CLKSEL_CLK_M_OSC, CM_PER_TIMER3_CLKCTRL,
 								CM_PER_TIMER3_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER3_CLKCTRL_MODULEMODE, CM_PER_TIMER3_CLKCTRL_IDLEST, CM_PER_TIMER3_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER3_GCLK);
 		break;
 	case Timer_TIMER4:
-		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER4_CLK, CM_DPLL_CLKSEL_TIMER4_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER4_CLK_CLKSEL_SEL3, CM_PER_TIMER4_CLKCTRL,
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER4_CLK, CM_DPLL_CLKSEL_TIMER4_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER4_CLK_CLKSEL_CLK_M_OSC, CM_PER_TIMER4_CLKCTRL,
 								CM_PER_TIMER4_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER4_CLKCTRL_MODULEMODE, CM_PER_TIMER4_CLKCTRL_IDLEST, CM_PER_TIMER4_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER4_GCLK);
 		break;
 	case Timer_TIMER5:
-		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER5_CLK, CM_DPLL_CLKSEL_TIMER5_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER5_CLK_CLKSEL_SEL3, CM_PER_TIMER5_CLKCTRL,
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER5_CLK, CM_DPLL_CLKSEL_TIMER5_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER5_CLK_CLKSEL_CLK_M_OSC, CM_PER_TIMER5_CLKCTRL,
 								CM_PER_TIMER5_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER5_CLKCTRL_MODULEMODE, CM_PER_TIMER5_CLKCTRL_IDLEST, CM_PER_TIMER5_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER5_GCLK);
 		break;
 	case Timer_TIMER6:
-		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER6_CLK, CM_DPLL_CLKSEL_TIMER6_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER6_CLK_CLKSEL_SEL3, CM_PER_TIMER6_CLKCTRL,
+		ClockModuleEnableCore(CM_DPLL_CLKSEL_TIMER6_CLK, CM_DPLL_CLKSEL_TIMER6_CLK_CLKSEL, CM_DPLL_CLKSEL_TIMER6_CLK_CLKSEL_CLK_M_OSC, CM_PER_TIMER6_CLKCTRL,
 								CM_PER_TIMER6_CLKCTRL_MODULEMODE_ENABLE, CM_PER_TIMER6_CLKCTRL_MODULEMODE, CM_PER_TIMER6_CLKCTRL_IDLEST, CM_PER_TIMER6_CLKCTRL_IDLEST_FUNC, CM_PER_L4LS_CLKSTCTRL_CLKACTIVITY_TIMER6_GCLK);
 		break;
 	case Timer_TIMER7:
@@ -843,7 +840,7 @@ void EnableDelayTimerInterrupts() {
 }
 
 void DisableDelayTimerInterrupts() {
-	SetIrqMode(SOC_DMTIMER_7_REGS, IqrMode_OFF, TIMER_IRQENABLE_SET);
+	SetIrqMode(SOC_DMTIMER_7_REGS, IrqMode_OFF, TIMER_IRQENABLE_SET);
 }
 
 void SetDelayTimerCounterValue(uint32_t value) {
