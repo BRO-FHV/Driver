@@ -19,33 +19,28 @@ void CPSWCore0TxIsr();
 
 void InterruptSetup();
 
+typedef struct ethIf
+{
+    unsigned int instNum;   /* Instance Number */
+    unsigned int slvPortNum; /* CPSW Slave Port Number */
+    unsigned int ipAddr; /* IP Address */
+    unsigned int netMask; /* Net Mask */
+    unsigned int gwAddr; /* Gate Way Address */
+    unsigned char macArray[LEN_MAC_ADDRESS]; /* MAC Address to be used*/
+} ETH_IF;
+
 /**
  * \brief   Configure the ethernet port with a ip.
  *
- * \param   ip		For Example IP Address 192.168.0.7 use the corresponding hex value 0xC0A80007
+ * \param   ip			ip address as hex value
+ * 			netMask		netmask as hex value
+ * 			gateway		standard gateway address as hex value
  *
- * \return	IF setting the IP was successful the IP is returned, 0 otherwise.
+ * \return	If setting the IP was successful the IP is returned, 0 otherwise.
  *
  **/
-uint32_t EthConfigureWithIP(uint32_t ip) {
-	return ConfigureCore(ip);
-}
-
-/**
- * \brief   Configure the ethernet port and activate DHCP mode.
- *
- * \return	The specific enum value that indicates the final state of the configuration.
- **/
-uint32_t EthConfigureWithDHCP() {
-	return ConfigureCore(0);
-}
-
-uint32_t ConfigureCore(uint32_t ip) {
-	LWIP_IF lwipIfPort1, lwipIfPort2;
-
-	#ifdef LWIP_CACHE_ENABLED
-		CacheEnable(CACHE_ALL);
-	#endif
+uint32_t EthConfigureWithIP(uint32_t ip, uint32_t netMask, uint32_t gateway) {
+	ETH_IF ethPort;
 
 	CPSWPinMuxSetup();
 	CPSWClkEnable();
@@ -53,25 +48,18 @@ uint32_t ConfigureCore(uint32_t ip) {
 	CPSWEVMPortMIIModeSelect();
 
 	// Get the MAC address
-	CPSWEVMMACAddrGet(0, lwipIfPort1.macArray);
-	CPSWEVMMACAddrGet(1, lwipIfPort2.macArray);
+	CPSWEVMMACAddrGet(0, ethPort.macArray);
 
 	//Configure Interrupt handler
 	InterruptSetup();
 
-	if (ip) {
-		lwipIfPort1.ipMode = IPADDR_USE_STATIC;
-	} else {
-		lwipIfPort1.ipMode = IPADDR_USE_DHCP;
-	}
+	ethPort.instNum = 0;
+	ethPort.slvPortNum = 1;
+	ethPort.ipAddr = ip;
+	ethPort.netMask = netMask;
+	ethPort.gwAddr = ethPort;
 
-	lwipIfPort1.instNum = 0;
-	lwipIfPort1.slvPortNum = 1;
-	lwipIfPort1.ipAddr = ip;
-    lwipIfPort1.netMask = 0;
-    lwipIfPort1.gwAddr = 0;
-
-	uint32_t ipAddr = (uint32_t)lwIPInit(&lwipIfPort1);
+	uint32_t ipAddr = (uint32_t)lwIPInit(&ethPort);
 
 	if(0 == ipAddr) {
 		printf("\n\rUnable to get IP-Address!");

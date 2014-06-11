@@ -12,7 +12,6 @@
 
 #include <inttypes.h>
 
-uint32_t EthConfigureWithIP(uint32_t ip);
-uint32_t EthConfigureWithDHCP();
+uint32_t EthConfigureWithIP(uint32_t ip, uint32_t netMask, uint32_t gateway);
 
 #endif /* DR_ETH_H_ */
