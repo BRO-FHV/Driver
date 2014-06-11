@@ -137,7 +137,7 @@ irq_handler:
 	;	+ r14	= link register
 	;	+ pc	= program counter
 	;
-	CPS		#MASK_SYS_MODE				; change to sys mode
+	;CPS		#MASK_SYS_MODE				; change to sys mode
 	LDR		r3, _intIrqHandlers			; load base of interrupt handler (implemented in interrupt.c)
 	ADD		r14, pc, #0					; save return address in link register (return point)
 	LDR		pc, [r3, r2, lsl #2]		; jump to interrupt handler
@@ -156,7 +156,7 @@ irq_handler:
 	ADD		r14, pc, #0					; save return address in link register (return point)
 	LDR		pc, [r3, r2, lsl #2]		; jump to interrupt handler
 
-	CPS		#MASK_IRQ_MODE				; change to irq mode
+	;CPS		#MASK_IRQ_MODE				; change to irq mode
 
 	;
 	; enable IRQ generation

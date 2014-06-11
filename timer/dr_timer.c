@@ -28,14 +28,6 @@
 #include <hw_cm_wkup.h>
 #include <hw_cm_per.h>
 
-
-#define NUMBER_OF_TIMERS		8
-#define RESET_VALUE				0x00
-#define TRIGGER_VALUE   		(0xFFFFFFFFu)
-#define TIMER_INITIAL_COUNT     (0xFFFFA23Fu)
-#define TIMER_1MS_COUNT         (0x5DC0u)
-#define TIMER_OVERFLOW          (0xFFFFFFFFu)
-
 /**
  * \brief   This macro will check for write POSTED status.
  *
@@ -52,6 +44,8 @@
 #define NUMBER_OF_TIMERS				8
 #define RESET_VALUE						0x00
 #define DELAY_USE_INTERRUPTS 			1
+#define TIMER_OVERFLOW                  (0xFFFFFFFFu)
+#define TRIGGER_VALUE   				(0xFFFFFFFFu)
 
 static volatile Boolean flagIsr = 1;
 static uint16_t timers[NUMBER_OF_TIMERS];
@@ -81,14 +75,14 @@ void EnablePostedMode(uint32_t baseAddr, uint32_t tsicr);
 void EnableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps, uint32_t tcrr);
 void DisableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps);
 void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t tcrr, uint32_t tsicr, uint32_t twps);
-
-void ToggleSTVal(uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps);
-void ResetTCRRRegister(uint32_t baseAddr, uint32_t tcrr, uint32_t tsicr, uint32_t twps);
 void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t twer, uint32_t tier, uint32_t tsicr, uint32_t twps, uint32_t tcrr);
 
 uint32_t IsClockModuleTimerEnabled(Timer timer);
 void ClockModuleEnable(Timer timer);
 void ClockModuleEnableCore(uint32_t dpll_clksel_clk, uint32_t dpll_clksel_clk_clksel, uint32_t dpll_clksel_clk_clksel_sel, uint32_t per_clkctrl, uint32_t per_clkctrl_mode, uint32_t per_ctlctrl_modulemode, uint32_t per_clkctrl_idlest, uint32_t per_clkctrl_idelst_func, uint32_t per_clkactivity_gclk);
+
+void ResetTCRRRegister(uint32_t baseAddr, uint32_t tcrr, uint32_t tsicr, uint32_t twps);
+void ToggleSTVal(uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps);
 
 void ResetTimer1IrqStatus();
 void ResetTimer2IrqStatus();
@@ -115,17 +109,17 @@ static void DelayTimerIsr();
  *
  * \param timer Timer that should be enabled.
  *
- * \return 0 on success, -1 on failure
+ * \return 0 on success, FALSE on failure
  */
 int32_t TimerEnable(Timer timer) {
 	if (1 == timers[timer]) {
-		return false; //already enabled
+		return FALSE; //already enabled
 	}
 
 	uint32_t baseAddr = GetTimerBaseAddr(timer);
 
 	if (UINT32_MAX == baseAddr) {
-		return false; //timer does not exist
+		return FALSE; //timer does not exist
 	}
 
 	if (1 == timer) {
@@ -134,23 +128,201 @@ int32_t TimerEnable(Timer timer) {
 		EnableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS, TIMER_TCRR);
 	}
 
-	return true;
+	return TRUE;
 }
-
 
 void EnableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps, uint32_t tcrr) {
 	//reset counter register
 	reg32wor(baseAddr, tcrr, RESET_VALUE);
 	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCRR, baseAddr);
 
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
-
 	//turn on timer
 	reg32wor(baseAddr, tclr, TCLR_ST);
+
 	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
 
 	//set to enabled
 	timers[timer] = 1;
+}
+
+/**
+ * \brief Disable a timer. ST bit of TCLR is set to 0. No registers were reset!
+ *
+ * \param timer Timer that should be disabled.
+ *
+ * \return TRUE on success, FALSE on failure
+ */
+int32_t TimerDisable(Timer timer) {
+	if (0 == timers[timer]) {
+		return FALSE; //already disabled
+	}
+
+	uint32_t baseAddr = GetTimerBaseAddr(timer);
+
+	if (UINT32_MAX == baseAddr) {
+		return FALSE; //failure
+	}
+
+	if (1 == timer) {
+		DisableCore(timer, baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
+	} else {
+		DisableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+	}
+
+	return 0;
+}
+
+void DisableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps) {
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
+
+	//shut down timer
+	reg32an(baseAddr, tclr, TCLR_ST);
+
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
+
+	//disable interrupt routine
+	uint32_t irqCode = GetTimerInterruptCode(timer);
+	IntUnRegister(irqCode);
+	IntHandlerDisable(irqCode);
+
+	//set to disabled
+	timers[timer] = 0;
+}
+
+/**
+ * \brief Reset a timer (e.g. counting state, interrupt status,..)
+ *
+ * \param timer Timer that should be reset.
+ *
+ * \return TRUE on success, FALSE on failure
+ */
+int32_t TimerReset(Timer timer) {
+	uint32_t baseAddr = GetTimerBaseAddr(timer);
+
+	if (UINT32_MAX == baseAddr) {
+		return FALSE; //failure
+	}
+
+	//reset registers
+	if (1 == timer) {
+		ResetCore(baseAddr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TWER, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TCRR, TIMER1_TSICR, TIMER1_TWPS);
+	} else {
+		ResetCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
+	}
+
+	return TRUE;
+}
+
+void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t tcrr, uint32_t tsicr, uint32_t twps) {
+	reg32wor(baseAddr, tmar, RESET_VALUE);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TMAR, baseAddr);
+
+	reg32wor(baseAddr, tldr, RESET_VALUE);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TLDR, baseAddr);
+
+	reg32wor(baseAddr, twer, RESET_VALUE);
+
+	reg32wor(baseAddr, ttgr, RESET_VALUE);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr);
+
+	reg32wor(baseAddr, tclr, RESET_VALUE);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr);
+
+	reg32wor(baseAddr, tcrr, RESET_VALUE);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCRR, baseAddr);
+
+	ResetTimerIrqStatusCore(baseAddr, tisr, tsicr, tcrr, twps, ttgr);
+}
+
+/**
+ * \brief Configure the passed timer to raise an interrupt (after passed milliseconds).
+ *
+ * \param timer	Timer that should be configured.
+ * \param milliseconds Time slice after which the interrupt is raised. If Timer_TIMER1MS is configured this value can be zero.
+ * \param routine This routine is called to handle the interrupt.
+ *
+ * \return TRUE on success, FALSE on failure
+ */
+int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine routine) {
+	if (1 == timers[timer] || NULL == routine) {
+		return FALSE; //timer is already enabled or routine is not set
+	}
+
+	uint32_t baseAddr = GetTimerBaseAddr(timer);
+
+	if (UINT32_MAX == baseAddr) {
+		return FALSE; //failure
+	}
+
+	if (1 == timer) {
+		//timer 1 ms
+		if(IsClockModuleTimerEnabled(timer)) {
+			DisableCore(timer, baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
+			ResetCore(baseAddr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TWER, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TCRR, TIMER1_TSICR, TIMER1_TWPS);
+		} else {
+			ClockModuleEnable(timer);
+		}
+
+		ConfigurationCore(baseAddr, TIMER1_TLDR, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TWER, TIMER1_TIER, TIMER1_TSICR, TIMER1_TWPS, TIMER1_TCRR);
+	} else {
+		//TMAR should be less than 0xFFFF FFFF
+		uint32_t matchValue = milliseconds * TIMER_FACTOR;
+		if(UINT32_MAX == matchValue || 0 >= matchValue) {
+			return FALSE;
+		}
+
+//	    uint32_t countVal = TIMER_OVERFLOW - (milliSec * TIMER_1MS_COUNT);
+//	    // Set the counter value
+//		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, baseAddr)
+//	    reg32w(baseAddr, TIMER_TCRR, value);
+//		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, baseAddr)
+
+		//timer 2 - 7
+		if(IsClockModuleTimerEnabled(timer)) {
+			DisableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
+			ResetCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
+		} else {
+			ClockModuleEnable(timer);
+		}
+
+		ConfigurationCore(baseAddr, TIMER_TLDR, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_IRQWAKEEN, TIMER_IRQENABLE_SET, TIMER_TSICR, TIMER_TWPS, TIMER_TCRR);
+
+		//defines the match value (e.g. interrupt is raised, if this value is reached)
+		reg32wor(baseAddr, TIMER_TMAR, matchValue);
+		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TMAR, baseAddr)
+	}
+
+	//configure interrupt routine
+	uint32_t irqCode = GetTimerInterruptCode(timer);
+	IntRegister(irqCode, routine);
+	IntHandlerEnable(irqCode);
+	IntResetRegister(irqCode, GetResetTimerFunc(timer));
+
+	return TRUE;
+}
+
+void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t twer, uint32_t tier, uint32_t tsicr, uint32_t twps, uint32_t tcrr) {
+	//enable posted mode for checking pending writes
+	EnablePostedMode(baseAddr, tsicr);
+
+	//defines where the timer should start to count (e.g. after a auto reload)
+	reg32wor(baseAddr, tldr, 0x00);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TLDR, baseAddr)
+
+	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
+	//Reload will be done regardless of the AR field value of TCLR register.
+	reg32wor(baseAddr, ttgr, TRIGGER_VALUE);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr)
+
+	//set compare enabled and auto reload
+	reg32wor(baseAddr, tclr, TCLR_CE + TCLR_AR);
+	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
+
+	SetIrqWakeenMode(baseAddr, IrqWakeen_MAT_WUP_ENA, twer);
+	SetIrqMode(baseAddr, IrqMode_MATCH, tier);
+
+	//clear pending interrupts
+	ResetTimerIrqStatusCore(baseAddr, tisr, tsicr, tcrr, twps, ttgr);
 }
 
 /**
@@ -248,179 +420,6 @@ void ToggleSTVal(uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps
 	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
 }
 
-/**
- * \brief Disable a timer. ST bit of TCLR is set to 0. No registers were reset!
- *
- * \param timer Timer that should be disabled.
- *
- * \return 0 on success, -1 on failure
- */
-int32_t TimerDisable(Timer timer) {
-	if (0 == timers[timer]) {
-		return false; //already disabled
-	}
-
-	uint32_t baseAddr = GetTimerBaseAddr(timer);
-
-	if (UINT32_MAX == baseAddr) {
-		return false; //failure
-	}
-
-	if (1 == timer) {
-		DisableCore(timer, baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
-	} else {
-		DisableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
-	}
-
-	return true;
-}
-
-void DisableCore(Timer timer, uint32_t baseAddr, uint32_t tclr, uint32_t tsicr, uint32_t twps) {
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
-
-	//shut down timer
-	reg32an(baseAddr, tclr, TCLR_ST);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
-
-	//disable interrupt routine
-	uint32_t irqCode = GetTimerInterruptCode(timer);
-	IntUnRegister(irqCode);
-	IntHandlerDisable(irqCode);
-
-	//set to disabled
-	timers[timer] = 0;
-}
-
-/**
- * \brief Reset a timer (e.g. counting state, interrupt status,..)
- *
- * \param timer Timer that should be reset.
- *
- * \return 0 on success, -1 on failure
- */
-int32_t TimerReset(Timer timer) {
-	uint32_t baseAddr = GetTimerBaseAddr(timer);
-
-	if (UINT32_MAX == baseAddr) {
-		return false; //failure
-	}
-
-	//reset registers
-	if (1 == timer) {
-		ResetCore(baseAddr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TWER, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TCRR, TIMER1_TSICR, TIMER1_TWPS);
-	} else {
-		ResetCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
-	}
-
-	return true;
-}
-
-void ResetCore(uint32_t baseAddr, uint32_t tmar, uint32_t tldr, uint32_t twer, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t tcrr, uint32_t tsicr, uint32_t twps) {
-	reg32wor(baseAddr, tmar, RESET_VALUE);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TMAR, baseAddr);
-
-	reg32wor(baseAddr, tldr, RESET_VALUE);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TLDR, baseAddr);
-
-	reg32wor(baseAddr, twer, RESET_VALUE);
-
-	reg32wor(baseAddr, ttgr, RESET_VALUE);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr);
-
-	reg32wor(baseAddr, tclr, RESET_VALUE);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr);
-
-	reg32wor(baseAddr, tcrr, RESET_VALUE);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCRR, baseAddr);
-
-	ResetTimerIrqStatusCore(baseAddr, tisr, tsicr, tcrr, twps, ttgr);
-}
-
-/**
- * \brief Configure the passed timer to raise an interrupt (after passed milliseconds).
- *
- * \param timer	Timer that should be configured.
- * \param milliseconds Time slice after which the interrupt is raised. If Timer_TIMER1MS is configured this value can be zero.
- * \param routine This routine is called to handle the interrupt.
- *
- * \return 0 on success, -1 on failure
- */
-int32_t TimerConfiguration(Timer timer, uint32_t milliseconds, InterruptRoutine routine) {
-	if (1 == timers[timer] || NULL == routine) {
-		return false; //timer is already enabled or routine is not set
-	}
-
-	uint32_t baseAddr = GetTimerBaseAddr(timer);
-
-	if (UINT32_MAX == baseAddr) {
-		return false; //failure
-	}
-
-	if (1 == timer) {
-		//timer 1 ms
-		if(IsClockModuleTimerEnabled(timer)) {
-			DisableCore(timer, baseAddr, TIMER1_TCLR, TIMER1_TSICR, TIMER1_TWPS);
-			ResetCore(baseAddr, TIMER1_TMAR, TIMER1_TLDR, TIMER1_TWER, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TCRR, TIMER1_TSICR, TIMER1_TWPS);
-		} else {
-			ClockModuleEnable(timer);
-		}
-
-		ConfigurationCore(baseAddr, TIMER1_TLDR, TIMER1_TISR, TIMER1_TTGR, TIMER1_TCLR, TIMER1_TWER, TIMER1_TIER, TIMER1_TSICR, TIMER1_TWPS, TIMER1_TCRR);
-	} else {
-		//TMAR should be less than 0xFFFF FFFF
-		uint32_t matchValue = milliseconds * TIMER_FACTOR;
-		if(UINT32_MAX == matchValue || 0 >= matchValue) {
-			return false;
-		}
-
-		//timer 2 - 7
-		if(IsClockModuleTimerEnabled(timer)) {
-			DisableCore(timer, baseAddr, TIMER_TCLR, TIMER_TSICR, TIMER_TWPS);
-			ResetCore(baseAddr, TIMER_TMAR, TIMER_TLDR, TIMER_IRQWAKEEN, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_TCRR, TIMER_TSICR, TIMER_TWPS);
-		} else {
-			ClockModuleEnable(timer);
-		}
-
-		ConfigurationCore(baseAddr, TIMER_TLDR, TIMER_IRQSTATUS, TIMER_TTGR, TIMER_TCLR, TIMER_IRQWAKEEN, TIMER_IRQENABLE_SET, TIMER_TSICR, TIMER_TWPS, TIMER_TCRR);
-
-		//defines the match value (e.g. interrupt is raised, if this value is reached)
-		reg32wor(baseAddr, TIMER_TMAR, matchValue);
-		WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TMAR, baseAddr)
-	}
-
-	//configure interrupt routine
-	uint32_t irqCode = GetTimerInterruptCode(timer);
-	IntRegister(irqCode, routine);
-	IntHandlerEnable(irqCode);
-	IntResetRegister(irqCode, GetResetTimerFunc(timer));
-
-	return true;
-}
-
-void ConfigurationCore(uint32_t baseAddr, uint32_t tldr, uint32_t tisr, uint32_t ttgr, uint32_t tclr, uint32_t twer, uint32_t tier, uint32_t tsicr, uint32_t twps, uint32_t tcrr) {
-
-	//enable posted mode for checking pending writes
-	EnablePostedMode(baseAddr, tsicr);
-
-	//defines where the timer should start to count (e.g. after a auto reload)
-	reg32wor(baseAddr, tldr, 0x00);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TLDR, baseAddr)
-
-	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
-	//Reload will be done regardless of the AR field value of TCLR register.
-	reg32wor(baseAddr, ttgr, TRIGGER_VALUE);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr)
-
-	//set compare enabled and auto reload
-	reg32wor(baseAddr, tclr, TCLR_CE + TCLR_AR);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TCLR, baseAddr)
-
-	SetIrqWakeenMode(baseAddr, IrqWakeen_MAT_WUP_ENA, twer);
-	SetIrqMode(baseAddr, IrqMode_MATCH, tier);
-
-	//clear pending interrupts
-	ResetTimerIrqStatusCore(baseAddr, tisr, tsicr, tcrr, twps, ttgr);
-}
 
 void EnablePostedMode(uint32_t baseAddr, uint32_t tsicr) {
 	/* Clear the POSTED field of TSICR */
@@ -534,7 +533,7 @@ uint32_t GetTimerInterruptCode(Timer timer) {
 }
 
 void ResetTimer1IrqStatus() {
-	// FIXME ???
+	ResetTimerIrqStatusCore(SOC_DMTIMER_1_REGS, TIMER1_TISR, TIMER1_TSICR, TIMER1_TCRR, TIMER1_TWPS, TIMER1_TTGR);
 }
 
 void ResetTimer2IrqStatus() {
@@ -563,14 +562,8 @@ void ResetTimer7IrqStatus() {
 
 void ResetTimerIrqStatusCore(uint32_t baseAddr, uint32_t tisr, uint32_t tsicr, uint32_t tcrr, uint32_t twps, uint32_t ttgr) {
 	//clear all pending interrupt flags
-	reg32w(baseAddr, tisr, 1);
+	reg32w(baseAddr, tisr, TISR_ALL_FLAGS);
 	wait((reg32r(baseAddr, tisr)) != 0);
-
-	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
-	//Reload will be done regardless of the AR field value of TCLR register.
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr)
-	reg32wor(baseAddr, ttgr, TRIGGER_VALUE);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr)
 }
 
 uint32_t IsClockModuleTimerEnabled(Timer timer) {
@@ -704,13 +697,12 @@ void TimerDelaySetup() {
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TTGR, SOC_DMTIMER_7_REGS)
 
 	//set one shot and no compare enabled
-	//set compare enabled and auto reload
+	//set compare enabled and auto reload disabled
 	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_CE);
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
 
     /* Set the counter value */
-	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCRR, SOC_DMTIMER_7_REGS)
-    reg32w(SOC_DMTIMER_7_REGS, TIMER_TCRR, RESET_VALUE);
+    SetDelayTimerCounterValue(RESET_VALUE);
 #if DELAY_USE_INTERRUPTS
 	SetIrqWakeenMode(SOC_DMTIMER_7_REGS, IrqWakeen_ALL, TIMER_IRQWAKEEN);
 	SetIrqMode(SOC_DMTIMER_7_REGS, IrqMode_ALL, TIMER_IRQENABLE_SET);
@@ -724,6 +716,7 @@ void TimerDelaySetup() {
     IntPrioritySet(SYS_INT_TINT7, 0, AINTC_HOSTINT_ROUTE_IRQ);
 	IntHandlerEnable(SYS_INT_TINT7);
 	IntResetRegister(SYS_INT_TINT7, ResetTimer7IrqStatus);
+
 #endif
 }
 
@@ -749,11 +742,8 @@ void TimerDelayDelay(uint32_t milliSec) {
     EnableDelayTimer();
 
     while(FALSE == flagIsr);
+
     DisableDelayTimerInterrupts();
-
-    ShutdownDelayTimer();
-
-    SetDelayTimerCounterValue(RESET_VALUE);
 #else
     while(milliSec != 0)
     {
@@ -775,10 +765,8 @@ void TimerDelayDelay(uint32_t milliSec) {
  */
 void TimerDelayStart(uint32_t milliSec) {
 #if DELAY_USE_INTERRUPTS
-	uint32_t matchValue = milliSec * TIMER_FACTOR;
-
-    SetDelayTimerCounterValue(RESET_VALUE);
-    SetDelayTimerMatchValue(matchValue);
+    uint32_t countVal = TIMER_OVERFLOW - (milliSec * TIMER_1MS_COUNT);
+    SetDelayTimerCounterValue(countVal);
 
     flagIsr = FALSE;
 
@@ -836,30 +824,25 @@ uint32_t TimerDelayIsElapsed() {
 
 static void DelayTimerIsr()
 {
-	ShutdownDelayTimer();
-
 	ResetTimer7IrqStatus();
 
-	TimerDisable(Timer_TIMER7);
+	ShutdownDelayTimer();
+
     flagIsr = TRUE;
 }
 
 void ShutdownDelayTimer() {
 	//shut down timer
 	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
+
 	reg32an(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ST);
-	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
 }
 
 void EnableDelayTimerInterrupts() {
-    // Enable the interrupts
-//    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_SET, IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG));
 	SetIrqMode(SOC_DMTIMER_7_REGS, IrqMode_ALL, TIMER_IRQENABLE_SET);
 }
 
 void DisableDelayTimerInterrupts() {
-	// Disable the interrupts
-//    reg32w(SOC_DMTIMER_7_REGS, TIMER_IRQENABLE_CLR, IRQENABLE_OVF_EN_FLAG & (IRQENABLE_TCAR_EN_FLAG | IRQENABLE_OVF_EN_FLAG | IRQENABLE_MAT_EN_FLAG));
 	SetIrqMode(SOC_DMTIMER_7_REGS, IqrMode_OFF, TIMER_IRQENABLE_SET);
 }
 
@@ -883,9 +866,6 @@ void EnableDelayTimer() {
 
 	//turn on timer
 	reg32wor(SOC_DMTIMER_7_REGS, TIMER_TCLR, TCLR_ST);
-
-    /* Wait for previous write to complete */
-	WaitForWrite(TIMER_TSICR, TIMER_TWPS, TWPS_W_PEND_TCLR, SOC_DMTIMER_7_REGS)
 }
 
 void DisableDelayTimer() {
