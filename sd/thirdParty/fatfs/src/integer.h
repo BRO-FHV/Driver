@@ -19,7 +19,7 @@ typedef unsigned int	ULONG;
 typedef unsigned int	DWORD;
 
 /* Boolean type */
-typedef enum {FALSE = 0, TRUE} BOOL;
+typedef enum {iFALSE = 0, iTRUE} iBOOL;
 
 #define _INTEGER
 #endif

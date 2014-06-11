@@ -21,7 +21,7 @@
 #include "../console/dr_console.h"
 #include "cpu/hw_cpu.h"
 #include "thirdParty/fatfs/src/ff.h"
-#include "../Scheduler/elf/dr_elfloader.h"
+#include "elf/dr_elfloader.h"
 
 /******************************************************************************
 **                      INTERNAL MACRO DEFINITIONS
@@ -646,21 +646,21 @@ int startFileSystem(void)
 /**
  * Opens and reads file content
  */
-int32_t getFileContent(const char * path){
+void * getElfFile(const char * path){
 
-	FIL * fos;
+	FIL  fos;
 	FRESULT result;
-	void * dataBuf;
-	WORD * read;
+	void * dataBuf=0;
+	WORD * read=0;
 
-	result = f_open(fos, path,FA_READ);
+	result = f_open(&fos, path,FA_READ);
 
 	if(result != FR_OK){
 		printf("FS: File could not be opened! FRESULT: %d", result);
 		return 0;
 	}
 
-	result = f_read(fos,dataBuf,(WORD) sizeof(elf_header_t),read);
+	result = f_read(&fos,dataBuf,(WORD) sizeof(elf_header_t),read);
 
 	if(result != FR_OK){
 		printf("FS: File could not be read! FRESULT: %d", result);

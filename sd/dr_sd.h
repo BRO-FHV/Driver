@@ -13,7 +13,7 @@
 #define DR_SD_H_
 
 int startFileSystem(void);
-int32_t getElfFile(const char * path);
+void * getElfFile(const char * path);
 
 #endif /* DR_SD_H_ */
 
