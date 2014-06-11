@@ -563,14 +563,8 @@ void ResetTimer7IrqStatus() {
 
 void ResetTimerIrqStatusCore(uint32_t baseAddr, uint32_t tisr, uint32_t tsicr, uint32_t tcrr, uint32_t twps, uint32_t ttgr) {
 	//clear all pending interrupt flags
-	reg32w(baseAddr, tisr, 1);
+	reg32w(baseAddr, tisr, TISR_ALL_FLAGS);
 	wait((reg32r(baseAddr, tisr)) != 0);
-
-	//Writing in the TTGR register, TCRR will be loaded from TLDR and prescaler counter will be cleared.
-	//Reload will be done regardless of the AR field value of TCLR register.
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr)
-	reg32wor(baseAddr, ttgr, TRIGGER_VALUE);
-	WaitForWrite(tsicr, twps, TWPS_W_PEND_TTGR, baseAddr)
 }
 
 uint32_t IsClockModuleTimerEnabled(Timer timer) {
