@@ -7,6 +7,8 @@
  * TODO
  */
 
+#include <inttypes.h>
+
 #include "toSort/mmcsd_proto.h"
 #include "toSort/hs_mmcsdlib.h"
 #include "soc_AM335x.h"
@@ -18,6 +20,8 @@
 #include "../edma/edma.h"
 #include "../console/dr_console.h"
 #include "cpu/hw_cpu.h"
+#include "thirdParty/fatfs/src/ff.h"
+#include "../Scheduler/elf/dr_elfloader.h"
 
 /******************************************************************************
 **                      INTERNAL MACRO DEFINITIONS
@@ -563,14 +567,16 @@ static void HSMMCSDControllerSetup(void)
     cmdTimeout = 0;
 }
 
-
-void startFileSystem(void)
+/**
+ * Inits file system and checks for mounted sd
+ */
+int startFileSystem(void)
 {
     volatile unsigned int i = 0;
     volatile unsigned int initFlg = 1;
 
     /* Initialize console for communication with the Host Machine */
-    ConsoleEnable(SOC_UART_0_REGS);
+    // ConsoleEnable(SOC_UART_0_REGS);
 
     /* Configure the EDMA clocks. */
     EDMAModuleClkConfig();
@@ -592,10 +598,9 @@ void startFileSystem(void)
 
     MMCSDIntEnable(&ctrlInfo);
 
-    CPUirqe();
+    //CPUirqe();
 
-    unsigned int read = 0;
-    while(!read)
+    while(1)
     {
         if((HSMMCSDCardPresent(&ctrlInfo)) == 1)
         {
@@ -604,7 +609,7 @@ void startFileSystem(void)
                 HSMMCSDFsMount(0, &sdCard);
                 initFlg = 0;
             }
-         read =  HSMMCSDFsProcessCmdLine();
+            return 1;
         }
         else
         {
@@ -614,7 +619,7 @@ void startFileSystem(void)
 
             if(i %20 == 1)
             {
-                 ConsoleLog("FS","Please insert the card \n\r");
+                 printf("FS: Please insert the card \n\r");
             }
 
             if(initFlg != 1)
@@ -636,3 +641,33 @@ void startFileSystem(void)
         }
     }
 }
+
+
+/**
+ * Opens and reads file content
+ */
+int32_t getFileContent(const char * path){
+
+	FIL * fos;
+	FRESULT result;
+	void * dataBuf;
+	WORD * read;
+
+	result = f_open(fos, path,FA_READ);
+
+	if(result != FR_OK){
+		printf("FS: File could not be opened! FRESULT: %d", result);
+		return 0;
+	}
+
+	result = f_read(fos,dataBuf,(WORD) sizeof(elf_header_t),read);
+
+	if(result != FR_OK){
+		printf("FS: File could not be read! FRESULT: %d", result);
+		return 0;
+	}
+
+	return dataBuf;
+}
+
+
