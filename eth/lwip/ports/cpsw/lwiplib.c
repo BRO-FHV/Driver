@@ -80,6 +80,7 @@
 #include "src/core/ipv4/inet.c"
 #include "src/core/ipv4/inet_chksum.c"
 #include "src/core/ipv4/ip.c"
+#include "src/core/ipv4/broipinput.c"
 #include "src/core/ipv4/ip_addr.c"
 #include "src/core/ipv4/ip_frag.c"
 
@@ -235,7 +236,7 @@ unsigned int lwIPInit(LWIP_IF *lwipIf)
     */
     if(NULL ==
        netif_add(&cpswNetIF[ifNum], &ip_addr, &net_mask, &gw_addr, 
-                 &cpswPortIf[ifNum], cpswif_init, ip_input))
+                 &cpswPortIf[ifNum], cpswif_init, bro_ip_input))
     {
         LWIP_PRINTF("\n\rUnable to add interface for interface %d", ifNum);
         return 0;
