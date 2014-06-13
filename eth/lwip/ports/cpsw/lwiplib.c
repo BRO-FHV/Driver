@@ -134,45 +134,7 @@ static struct netif cpswNetIF[MAX_CPSW_INST];
 /*
 ** Helper to identify ports
 */
-static struct cpswportif cpswPortIf[MAX_CPSW_INST * MAX_SLAVEPORT_PER_INST];
-
-/******************************************************************************
-**                          FUNCTION DEFINITIONS
-******************************************************************************/
-/**
- * \brief   This function waits for DHCP completion with a timeout 
- *
- * \param   ifNum  The netif number for the interface
- *
- * \return  None
-*/
-static void lwIPDHCPComplete(unsigned int ifNum)
-{
-    unsigned int dhcpTries = NUM_DHCP_TRIES;
-    int cnt;
-    volatile unsigned char *state;
-
-    while(dhcpTries--)
-    {
-        LWIP_PRINTF("\n\rDHCP Trial %d...", (NUM_DHCP_TRIES - dhcpTries));
-        dhcp_start(&cpswNetIF[ifNum]);
-
-        cnt = LWIP_DHCP_TIMEOUT;
-
-        /* Check for DHCP completion for 'cnt' number of times, each 10ms */
-        while(cnt--)
-        {
-            delay(10);
-            state = &(cpswNetIF[ifNum].dhcp->state);
-            if(DHCP_BOUND == *state)
-            {
-                return;
-            }
-        }
-    }
-
-    LWIP_PRINTF("\n\rUnable to complete DHCP! \n\r");
-}
+static struct cpswportif cpswPortIf;
 
 /**
  *
@@ -275,35 +237,7 @@ unsigned int lwIPInit(LWIP_IF *lwipIf)
     return (*ipAddrPtr);
 }
 
-/*
- * \brief   Checks if the ethernet link is up
- *
- * \param   instNum     The instance number of CPSW module 
- * \param   slvPortNum  The Slave Port Number
- *
- * \return  Interface status.
-*/
-unsigned int lwIPNetIfStatusGet(unsigned int instNum, unsigned int slvPortNum) 
-{
-    unsigned int ifNum;
 
-    ifNum = instNum * MAX_SLAVEPORT_PER_INST + slvPortNum - 1;
-    
-    return (cpswif_netif_status(&cpswNetIF[ifNum]));
-}
-
-/*
- * \brief   Checks if the ethernet link is up
- *
- * \param   instNum     The instance number of CPSW module 
- * \param   slvPortNum  The Slave Port Number
- *
- * \return  The link status.
-*/
-unsigned int lwIPLinkStatusGet(unsigned int instNum, unsigned int slvPortNum) 
-{
-    return (cpswif_link_status(instNum, slvPortNum));     
-}
 
 /**
  * \brief   Interrupt handler for Receive Interrupt. Directly calls the
@@ -333,29 +267,6 @@ void lwIPTxIntHandler(unsigned int instNum)
     cpswif_tx_inthandler(instNum);
 }
 
-/**
- * \brief   Starts DHCP negotiation 
- *
- * \param   instNum     The instance number of CPSW module 
- * \param   slvPortNum  The Slave Port Number
- *
- * \return  IP address assigned. If IP acquisition failed, zero will be returned.
-*/
-unsigned int lwIPDHCPStart(unsigned int instNum, unsigned int slvPortNum)
-{
-    unsigned int *ipAddrPtr;
-    unsigned int ifNum;
-
-    ifNum = instNum * MAX_SLAVEPORT_PER_INST + slvPortNum - 1;
-
-    lwIPDHCPComplete(ifNum);
-
-    ipAddrPtr = (unsigned int*)&(cpswNetIF[ifNum].ip_addr);
-
-    return (*ipAddrPtr);
-}
-
-/***************************** End Of File ***********************************/
 
 
 

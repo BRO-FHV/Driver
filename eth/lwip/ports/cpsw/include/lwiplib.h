@@ -64,7 +64,6 @@
 #define IPADDR_USE_AUTOIP                  (2)
 
 #ifndef LEN_MAC_ADDRESS
-#define LEN_MAC_ADDRESS                    (6)
 #endif
 
 #define MAX_ALE_ENTRIES                    (1024)

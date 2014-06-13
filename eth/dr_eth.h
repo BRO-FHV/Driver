@@ -12,6 +12,8 @@
 
 #include <inttypes.h>
 
+typedef uint32_t ip_addr;
+
 uint32_t EthConfigureWithIP(uint32_t ip, uint32_t netMask, uint32_t gateway);
 
 #endif /* DR_ETH_H_ */
