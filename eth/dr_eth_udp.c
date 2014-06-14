@@ -20,11 +20,11 @@ ip_addr_t ipAddr;
 udp_connection_t connections[MAX_CONNECTIONS];
 uint8_t currentIndex;
 
-udp_connection_t* get_udp_connection(uint32_t port);
+udp_connection_t* broUdpGetConnection(uint32_t port);
 
-void bro_udp_input(eth_header* ethHeader, ip_header* ipHeader, udp_header* udp_header, uint8_t data[], uint32_t dataLen) {
+void broUdpInput(eth_header_t* ethHeader, ip_header_t* ipHeader, udp_header_t* udp_header, uint8_t data[], uint32_t dataLen) {
 
-	udp_connection_t* conn = get_udp_connection(convertBigToLittleEndian(udp_header->destPort));
+	udp_connection_t* conn = broUdpGetConnection(convertBigToLittleEndian(udp_header->destPort));
 
 	if (NULL != conn) {
 		//copy package data to avoid data loss
@@ -40,7 +40,7 @@ void bro_udp_input(eth_header* ethHeader, ip_header* ipHeader, udp_header* udp_h
 	}
 }
 
-udp_connection_t* get_udp_connection(uint32_t port) {
+udp_connection_t* broUdpGetConnection(uint32_t port) {
 	uint8_t i;
 	for (i = 0; i < MAX_CONNECTIONS; i++) {
 		if (connections[i].port == port) {
@@ -51,7 +51,7 @@ udp_connection_t* get_udp_connection(uint32_t port) {
 	return NULL;
 }
 
-void bro_udp_init(uint32_t port) {
+void broUdpInit(uint32_t port) {
 	if (currentIndex < 10) {
 		connections[currentIndex].pcb = udp_new();
 		connections[currentIndex].port = port;
@@ -62,14 +62,14 @@ void bro_udp_init(uint32_t port) {
 	}
 }
 
-upd_package_t* bro_udp_get_data(uint32_t port) {
-	udp_connection_t* conn = get_udp_connection(port);
+upd_package_t* broUdpGetData(uint32_t port) {
+	udp_connection_t* conn = broUdpGetConnection(port);
 
 	return NULL != conn ? &conn->package : NULL;
 }
 
-void bro_udp_send_data(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t dataLen) {
-	udp_connection_t* conn = get_udp_connection(port);
+void broUdpSendData(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t dataLen) {
+	udp_connection_t* conn = broUdpGetConnection(port);
 
 	if (NULL != conn) {
 		udp_bind(conn->pcb, IP_ADDR_ANY, port);
@@ -88,8 +88,8 @@ void bro_udp_send_data(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_
 	}
 }
 
-tBoolean bro_udp_has_data(uint32_t port){
-	udp_connection_t* conn = get_udp_connection(port);
+tBoolean broUdpHasData(uint32_t port){
+	udp_connection_t* conn = broUdpGetConnection(port);
 
 	return NULL != conn && conn->package.len > 0 ? TRUE : FALSE;
 }

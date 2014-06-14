@@ -29,10 +29,10 @@ typedef struct {
 } udp_connection_t;
 
 
-void bro_udp_init(uint32_t port);
-void bro_udp_input(eth_header* ethHeader, ip_header* ipHeader, udp_header* udp_header, uint8_t data[], uint32_t dataLen);
-upd_package_t* bro_udp_get_data(uint32_t port);
-void bro_udp_send_data(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t dataLen);
-tBoolean bro_udp_has_data(uint32_t port);
+void broUdpInit(uint32_t port);
+void broUdpInput(eth_header_t* ethHeader, ip_header_t* ipHeader, udp_header_t* udp_header, uint8_t data[], uint32_t dataLen);
+upd_package_t* broUdpGetData(uint32_t port);
+void broUdpSendData(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t dataLen);
+tBoolean broUdpHasData(uint32_t port);
 
 #endif /* DR_ETH_UDP_H_ */
