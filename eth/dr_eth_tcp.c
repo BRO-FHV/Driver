@@ -24,7 +24,7 @@ udp_connection_t* BroTcpGetConnection(uint32_t port);
 
 void BroTcpInput(eth_header_t* ethHeader, ip_header_t* ipHeader, tcp_header_t* tcpHeader, uint8_t data[], uint32_t dataLen) {
 
-	udp_connection_t* conn = BroTcpGetConnection(convertBigToLittleEndian(tcpHeader->destPort));
+	udp_connection_t* conn = BroTcpGetConnection(ConvertBigToLittleEndian(tcpHeader->destPort));
 
 	if (NULL != conn) {
 		//copy package data to avoid data loss
@@ -77,7 +77,7 @@ void BroTcpSendData(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t d
 		struct pbuf *p;
 		p = pbuf_alloc(PBUF_TRANSPORT, dataLen, PBUF_RAM);
 
-		ipAddr.addr = ipToInt(receiver);
+		ipAddr.addr = IpToInt(receiver);
 
 		memcpy(p->payload, data, dataLen);
 		udp_sendto(conn->pcb, p, &ipAddr, port);
