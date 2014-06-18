@@ -31,15 +31,6 @@ uint32_t EthConfigureWithIP(uint32_t ip) {
 	return ConfigureCore(ip);
 }
 
-/**
- * \brief   Configure the ethernet port and activate DHCP mode.
- *
- * \return	The specific enum value that indicates the final state of the configuration.
- **/
-uint32_t EthConfigureWithDHCP() {
-	return ConfigureCore(0);
-}
-
 uint32_t ConfigureCore(uint32_t ip) {
 	LWIP_IF lwipIfPort1, lwipIfPort2;
 
@@ -59,12 +50,7 @@ uint32_t ConfigureCore(uint32_t ip) {
 	//Configure Interrupt handler
 	InterruptSetup();
 
-	if (ip) {
-		lwipIfPort1.ipMode = IPADDR_USE_STATIC;
-	} else {
-		lwipIfPort1.ipMode = IPADDR_USE_DHCP;
-	}
-
+	lwipIfPort1.ipMode = IPADDR_USE_STATIC;
 	lwipIfPort1.instNum = 0;
 	lwipIfPort1.slvPortNum = 1;
 	lwipIfPort1.ipAddr = ip;
