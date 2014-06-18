@@ -20,11 +20,11 @@ ip_addr_t ipAddr;
 udp_connection_t connections[MAX_CONNECTIONS];
 uint8_t currentIndex;
 
-udp_connection_t* BroTcpGetConnection(uint32_t port);
+udp_connection_t* BroUdpGetConnection(uint32_t port);
 
 void BroUdpInput(eth_header_t* ethHeader, ip_header_t* ipHeader, udp_header_t* udp_header, uint8_t data[], uint32_t dataLen) {
 
-	udp_connection_t* conn = BroTcpGetConnection(ConvertBigToLittleEndian(udp_header->destPort));
+	udp_connection_t* conn = BroUdpGetConnection(ConvertBigToLittleEndian(udp_header->destPort));
 
 	if (NULL != conn) {
 		//copy package data to avoid data loss
@@ -40,7 +40,7 @@ void BroUdpInput(eth_header_t* ethHeader, ip_header_t* ipHeader, udp_header_t* u
 	}
 }
 
-udp_connection_t* BroTcpGetConnection(uint32_t port) {
+udp_connection_t* BroUdpGetConnection(uint32_t port) {
 	uint8_t i;
 	for (i = 0; i < MAX_CONNECTIONS; i++) {
 		if (connections[i].port == port) {
@@ -63,13 +63,13 @@ void BroUdpInit(uint32_t port) {
 }
 
 upd_package_t* BroUdpGetData(uint32_t port) {
-	udp_connection_t* conn = BroTcpGetConnection(port);
+	udp_connection_t* conn = BroUdpGetConnection(port);
 
 	return NULL != conn ? &conn->package : NULL;
 }
 
 void BroUdpSendData(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t dataLen) {
-	udp_connection_t* conn = BroTcpGetConnection(port);
+	udp_connection_t* conn = BroUdpGetConnection(port);
 
 	if (NULL != conn) {
 		udp_bind(conn->pcb, IP_ADDR_ANY, port);
@@ -89,7 +89,7 @@ void BroUdpSendData(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t d
 }
 
 tBoolean BroUdpHasData(uint32_t port){
-	udp_connection_t* conn = BroTcpGetConnection(port);
+	udp_connection_t* conn = BroUdpGetConnection(port);
 
 	return NULL != conn && conn->package.len > 0 ? TRUE : FALSE;
 }
