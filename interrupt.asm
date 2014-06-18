@@ -14,6 +14,12 @@
 	.cdecls C,LIST,"interrupt/hw_interrupt.h"
 	.cdecls C,LIST,"soc_AM335x.h"
 
+
+;
+; define section of memory
+;
+	.sect ".interrupts"
+
 ;
 ; global regiter definitions
 ;
@@ -31,11 +37,6 @@ MASK_SYS_MODE		.set	0x1F
 MASK_IRQ_MODE		.set	0x12
 MASK_I_BIT			.set	0x80
 MASK_SWI_NUM		.set	0xFF000000
-
-;
-; define section of memory
-;
-	.text
 
 ;
 ; source file is assembled for ARM instructions
