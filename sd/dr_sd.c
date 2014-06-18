@@ -674,7 +674,7 @@ void  getElfFile(uint8_t * dataBuf,DWORD size ,const char * path){
 	{
 		totalRead += read;
 		read = 0;
-		result = f_read(&fos,g_cDataBuf, 1000 ,&read);
+		result = f_read(&fos,g_cDataBuf, 65535 ,&read);
 
 
 		if(result != FR_OK){
