@@ -49,7 +49,6 @@
 
 static volatile Boolean flagIsr = 1;
 static uint16_t timers[NUMBER_OF_TIMERS];
-static const uint8_t TIMER_FACTOR = 32;
 
 typedef enum {
 	IrqMode_MATCH = 0, IrqMode_OVERFLOW, IrqMode_CAPTURE, IrqMode_ALL, IrqMode_OFF
