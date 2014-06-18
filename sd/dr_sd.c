@@ -642,32 +642,56 @@ int startFileSystem(void)
     }
 }
 
+/* Defines size of the buffers that hold temporary data. */
+#define DATA_BUF_SIZE   64 * (2 * 512)
+static char g_cDataBuf[DATA_BUF_SIZE];
 
 /**
  * Opens and reads file content
  */
-void * getElfFile(const char * path){
+void  getElfFile(uint8_t * dataBuf,DWORD size ,const char * path){
 
 	FIL  fos;
 	FRESULT result;
-	void * dataBuf=0;
-	WORD * read=0;
+	WORD  read=0;
+	unsigned int totalRead = 0;
+
 
 	result = f_open(&fos, path,FA_READ);
 
 	if(result != FR_OK){
-		printf("FS: File could not be opened! FRESULT: %d", result);
-		return 0;
+		printf("FS: File could not be opened! FRESULT: %d\n", result);
+		return;
 	}
 
-	result = f_read(&fos,dataBuf,(WORD) sizeof(elf_header_t),read);
+	/*result = f_stat(path, &fi);
 
-	if(result != FR_OK){
-		printf("FS: File could not be read! FRESULT: %d", result);
-		return 0;
+		if(result != FR_OK){
+			printf("FS: File could not be opened! FRESULT: %d", result);
+			return 0;
+		}
+*/  do
+	{
+		totalRead += read;
+		read = 0;
+		result = f_read(&fos,g_cDataBuf, 1000 ,&read);
+
+
+		if(result != FR_OK){
+			printf("FS: File could not be read! FRESULT: %d\n", result);
+			return;
+		}
+		memcpy(dataBuf + totalRead, g_cDataBuf, read);
 	}
+	 while(totalRead+read < size);
 
-	return dataBuf;
+	result = f_close(&fos);
+
+    if(result != FR_OK)
+    {
+    	printf("FS: File could not be closed! FRESULT: %d\n", result);
+    	return;
+    }
 }
 
 

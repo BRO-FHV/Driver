@@ -8,12 +8,12 @@
  */
 
 #include <inttypes.h>
-
+#include "thirdParty/fatfs/src/integer.h"
 #ifndef DR_SD_H_
 #define DR_SD_H_
 
 int startFileSystem(void);
-void * getElfFile(const char * path);
+void  getElfFile(uint8_t * dataBuf,DWORD size ,const char * path);
 
 #endif /* DR_SD_H_ */
 
