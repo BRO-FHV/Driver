@@ -12,8 +12,8 @@
 
 #include <inttypes.h>
 #include "basic.h"
-#include "lwip/udp.h"
 #include "lwip/broipinput.h"
+#include "lwip/udp.h"
 
 typedef struct {
 	uint8_t* data;
