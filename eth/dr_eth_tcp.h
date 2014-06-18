@@ -19,20 +19,20 @@ typedef struct {
 	uint8_t* data;
 	uint32_t len;
 	uint8_t sender[IP_ADDR_LENGTH];
-} upd_package_t;
+} tcp_package_t;
 
 typedef struct {
 	uint32_t port;
-	struct udp_pcb *pcb;
+	struct tcp_pcb *pcb;
 
 	upd_package_t package;
-} udp_connection_t;
+} tcp_connection_t;
 
 
-void BroUdpInit(uint32_t port);
-void BroUdpInput(eth_header_t* ethHeader, ip_header_t* ipHeader, udp_header_t* udp_header, uint8_t data[], uint32_t dataLen);
-upd_package_t* BroUdpGetData(uint32_t port);
-void BroUdpSendData(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t dataLen);
-tBoolean BroUdpHasData(uint32_t port);
+void BroTcpInit(uint32_t port);
+void BroTcpInput(eth_header_t* ethHeader, ip_header_t* ipHeader, tcp_header_t* tcpHeader, uint8_t data[], uint32_t dataLen);
+tcp_package_t* BroTcpGetData(uint32_t port);
+void BroTcpSendData(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t dataLen);
+tBoolean BroTcpHasData(uint32_t port);
 
 #endif /* DR_ETH_UDP_H_ */

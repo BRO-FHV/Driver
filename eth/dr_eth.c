@@ -31,15 +31,6 @@ uint32_t EthConfigureWithIP(uint32_t ip) {
 	return ConfigureCore(ip);
 }
 
-/**
- * \brief   Configure the ethernet port and activate DHCP mode.
- *
- * \return	The specific enum value that indicates the final state of the configuration.
- **/
-uint32_t EthConfigureWithDHCP() {
-	return ConfigureCore(0);
-}
-
 uint32_t ConfigureCore(uint32_t ip) {
 	LWIP_IF lwipIfPort1, lwipIfPort2;
 

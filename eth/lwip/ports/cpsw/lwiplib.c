@@ -236,7 +236,7 @@ unsigned int lwIPInit(LWIP_IF *lwipIf)
     */
     if(NULL ==
        netif_add(&cpswNetIF[ifNum], &ip_addr, &net_mask, &gw_addr, 
-                 &cpswPortIf[ifNum], cpswif_init, bro_ip_input))
+                 &cpswPortIf[ifNum], cpswif_init, BroIpInput))
     {
         LWIP_PRINTF("\n\rUnable to add interface for interface %d", ifNum);
         return 0;
