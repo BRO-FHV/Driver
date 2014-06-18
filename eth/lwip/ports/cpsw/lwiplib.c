@@ -225,8 +225,7 @@ unsigned int lwIPInit(LWIP_IF *lwipIf)
     /* set MAC hardware address */
     for(temp = 0; temp < LEN_MAC_ADDRESS; temp++) 
     {
-        cpswPortIf[ifNum].eth_addr[temp] =
-                         lwipIf->macArray[(LEN_MAC_ADDRESS - 1) - temp];
+        cpswPortIf[ifNum].eth_addr[temp] = lwipIf->macArray[(LEN_MAC_ADDRESS - 1) - temp];
     }
     
     /*
@@ -234,9 +233,7 @@ unsigned int lwIPInit(LWIP_IF *lwipIf)
     ** default settings.  ip_input should be used to send packets directly to
     ** the stack. The lwIP will internaly call the cpswif_init function. 
     */
-    if(NULL ==
-       netif_add(&cpswNetIF[ifNum], &ip_addr, &net_mask, &gw_addr, 
-                 &cpswPortIf[ifNum], cpswif_init, BroIpInput))
+    if(NULL == netif_add(&cpswNetIF[ifNum], &ip_addr, &net_mask, &gw_addr, &cpswPortIf[ifNum], cpswif_init, BroIpInput))
     {
         LWIP_PRINTF("\n\rUnable to add interface for interface %d", ifNum);
         return 0;

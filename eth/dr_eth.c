@@ -50,12 +50,7 @@ uint32_t ConfigureCore(uint32_t ip) {
 	//Configure Interrupt handler
 	InterruptSetup();
 
-	if (ip) {
-		lwipIfPort1.ipMode = IPADDR_USE_STATIC;
-	} else {
-		lwipIfPort1.ipMode = IPADDR_USE_DHCP;
-	}
-
+	lwipIfPort1.ipMode = IPADDR_USE_STATIC;
 	lwipIfPort1.instNum = 0;
 	lwipIfPort1.slvPortNum = 1;
 	lwipIfPort1.ipAddr = ip;

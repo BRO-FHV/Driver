@@ -36,7 +36,7 @@ void BroUdpInput(eth_header_t* ethHeader, ip_header_t* ipHeader, udp_header_t* u
 
 		printf("received data (%d): %s\n", conn->port, data);
 	} else {
-		printf("connection not found - haha\n");
+		printf("received data at Port %d, but no connection is associated with this port.\n", conn->port);
 	}
 }
 
@@ -77,14 +77,14 @@ void BroUdpSendData(uint8_t receiver[], uint32_t port, uint8_t* data, uint32_t d
 		struct pbuf *p;
 		p = pbuf_alloc(PBUF_TRANSPORT, dataLen, PBUF_RAM);
 
-		ipAddr.addr = ipToInt(receiver);
+		ipAddr.addr = IpToInt(receiver);
 
 		memcpy(p->payload, data, dataLen);
 		udp_sendto(conn->pcb, p, &ipAddr, port);
 		pbuf_free(p); //De-allocate packet buffer
-		printf("message send\n");
+		printf("message send to Port %d\n", port);
 	} else {
-		printf("connection not found - haha\n");
+		printf("sending data to Port %d, but no connection is associated with this port.\n", port);
 	}
 }
 
