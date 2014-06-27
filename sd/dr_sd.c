@@ -461,8 +461,8 @@ static void HSMMCSDIsr(void)
 */
 static void EDMA3AINTCConfigure(void)
 {
-    /* Initializing the ARM Interrupt Controller. */
-	IntControllerInit();
+//    /* Initializing the ARM Interrupt Controller. */
+//	IntControllerInit();
 
     /* Registering EDMA3 Channel Controller transfer completion interrupt.  */
 	IntRegister(EDMA_COMPLTN_INT_NUM, Edma3CompletionIsr);
