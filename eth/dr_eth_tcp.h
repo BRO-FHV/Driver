@@ -25,7 +25,7 @@ typedef struct {
 	uint32_t port;
 	struct tcp_pcb *pcb;
 
-	upd_package_t package;
+	tcp_package_t package;
 } tcp_connection_t;
 
 
