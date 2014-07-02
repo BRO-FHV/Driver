@@ -461,20 +461,17 @@ static void HSMMCSDIsr(void)
 */
 static void EDMA3AINTCConfigure(void)
 {
-//    /* Initializing the ARM Interrupt Controller. */
-//	IntControllerInit();
-
     /* Registering EDMA3 Channel Controller transfer completion interrupt.  */
 	IntRegister(EDMA_COMPLTN_INT_NUM, Edma3CompletionIsr);
 
     /* Setting the priority for EDMA3CC completion interrupt in AINTC. */
-   // IntPrioritySet(EDMA_COMPLTN_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
+	// IntPrioritySet(EDMA_COMPLTN_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
 
     /* Registering EDMA3 Channel Controller Error Interrupt. */
     IntRegister(EDMA_ERROR_INT_NUM, Edma3CCErrorIsr);
 
     /* Setting the priority for EDMA3CC Error interrupt in AINTC. */
-   // IntPrioritySet(EDMA_ERROR_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
+    // IntPrioritySet(EDMA_ERROR_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
 
     /* Enabling the EDMA3CC completion interrupt in AINTC. */
     IntHandlerEnable(EDMA_COMPLTN_INT_NUM);
@@ -486,7 +483,7 @@ static void EDMA3AINTCConfigure(void)
     IntRegister(MMCSD_INT_NUM, HSMMCSDIsr);
 
     /* Setting the priority for EDMA3CC completion interrupt in AINTC. */
-   // IntPrioritySet(MMCSD_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
+    // IntPrioritySet(MMCSD_INT_NUM, 0, AINTC_HOSTINT_ROUTE_IRQ);
 
     /* Enabling the HSMMC interrupt in AINTC. */
     IntHandlerEnable(MMCSD_INT_NUM);
